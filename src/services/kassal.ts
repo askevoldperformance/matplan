@@ -52,8 +52,17 @@ export const STORE_OPTIONS: { code: string; label: string }[] = [
 
 const logoCache = new Map<string, string | null>();
 
+// Coop's physical stores are tagged per sub-chain (COOP_EXTRA, COOP_MEGA, ...), never as the
+// COOP_NO umbrella code products actually use — so the physical-store lookup below finds
+// nothing for it. Kassal's logo URLs follow a predictable /logos/{Name}.svg pattern; this one
+// is confirmed directly from a real product response, so it's hardcoded rather than guessed.
+const KNOWN_LOGO_OVERRIDES: Record<string, string> = {
+  COOP_NO: "https://kassal.app/logos/Coop.svg",
+};
+
 /** Fetches a representative store logo for a chain via one physical-store lookup, cached in memory. */
 export async function fetchStoreLogo(storeCode: string): Promise<string | null> {
+  if (KNOWN_LOGO_OVERRIDES[storeCode]) return KNOWN_LOGO_OVERRIDES[storeCode];
   if (logoCache.has(storeCode)) return logoCache.get(storeCode)!;
   try {
     const res = await fetch(`${API_BASE}/store-logo/${storeCode}`);
