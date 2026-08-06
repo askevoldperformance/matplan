@@ -284,33 +284,78 @@ export interface KiwiBonusResult {
   standardRatePct: number;
 }
 
+// Trumf only exists at specific chains — Kiwi/Meny/Joker/Spar (all NorgesGruppen).
+// Rema 1000 has its own "Æ" program, Coop has "Coop Medlem", Europris/Bunnpris aren't Trumf.
+// The 15% fruit & veg boost is a Kiwi Pluss-specific benefit layered on top of base Trumf —
+// Meny/Joker/Spar get the plain 1%/3% Trumf rate with no produce boost.
+// Correct me if any of this is off — worth double-checking against current Trumf terms.
+const TRUMF_STORE_RATES: Record<string, { produce: number; standard: number }> = {
+  KIWI: { produce: 15, standard: 1 },
+  MENY_NO: { produce: 0, standard: 1 },
+  JOKER_NO: { produce: 0, standard: 1 },
+  SPAR_NO: { produce: 0, standard: 1 },
+};
+
+export function isTrumfStore(storeCode: string | undefined): boolean {
+  return !!storeCode && storeCode in TRUMF_STORE_RATES;
+}
+
 /**
- * Kiwi Pluss: 15% cashback on fruit & veg (permanent Kiwi Pluss benefit), 1% on everything
- * else, bumped to 3% on days with "Trippeltrumf" (Kiwi's randomly-announced triple-bonus days).
- * Assumption: Trippeltrumf triples the everyday 1% rate — it does not change the fixed 15%
- * produce rate. Adjust here if Kiwi's actual terms differ.
+ * Single-store bonus calc — call once per store group, never across the whole basket, since
+ * different stores have different (or no) Trumf terms.
  */
 export function calcKiwiBonus(
   lines: GroceryLine[],
-  kiwiPlussEnabled: boolean,
-  trippelTrumfToday: boolean
+  trumfMemberEnabled: boolean,
+  trippelTrumfToday: boolean,
+  storeCode?: string
 ): KiwiBonusResult {
   const totalPrice = lines.reduce((sum, l) => sum + l.estimatedPrice, 0);
-  const standardRatePct = trippelTrumfToday ? 3 : 1;
-  const produceRatePct = 15;
+  const rates = storeCode ? TRUMF_STORE_RATES[storeCode] : undefined;
 
-  if (!kiwiPlussEnabled) {
+  if (!trumfMemberEnabled || !rates) {
     return { totalPrice, bonusKr: 0, netPrice: totalPrice, produceRatePct: 0, standardRatePct: 0 };
   }
 
+  const standardRatePct = trippelTrumfToday ? 3 : rates.standard;
+  const produceRatePct = rates.produce;
+
   let bonusKr = 0;
   for (const line of lines) {
-    const rate = (line.food.category === "Frukt" || line.food.category === "Grønnsaker" ? produceRatePct : standardRatePct) / 100;
+    const isProduce = line.food.category === "Frukt" || line.food.category === "Grønnsaker";
+    const rate = (isProduce && produceRatePct > 0 ? produceRatePct : standardRatePct) / 100;
     bonusKr += line.estimatedPrice * rate;
   }
   bonusKr = Math.round(bonusKr);
 
   return { totalPrice, bonusKr, netPrice: totalPrice - bonusKr, produceRatePct, standardRatePct };
+}
+
+export interface StoreGroup {
+  storeCode: string;
+  lines: GroceryLine[];
+  bonus: KiwiBonusResult;
+}
+
+/** Splits the grocery list into one section per store — items without a known store land in "UKJENT". */
+export function groupGroceryByStore(
+  lines: GroceryLine[],
+  trumfMemberEnabled: boolean,
+  trippelTrumfToday: boolean
+): StoreGroup[] {
+  const byStore = new Map<string, GroceryLine[]>();
+  for (const line of lines) {
+    const code = line.food.storeCode ?? "UKJENT";
+    if (!byStore.has(code)) byStore.set(code, []);
+    byStore.get(code)!.push(line);
+  }
+  return Array.from(byStore.entries())
+    .map(([storeCode, groupLines]) => ({
+      storeCode,
+      lines: groupLines,
+      bonus: calcKiwiBonus(groupLines, trumfMemberEnabled, trippelTrumfToday, storeCode),
+    }))
+    .sort((a, b) => a.storeCode.localeCompare(b.storeCode));
 }
 
 export function groupGroceryByCategory(lines: GroceryLine[]): Record<string, GroceryLine[]> {

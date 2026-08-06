@@ -142,6 +142,13 @@ function leafCategoryName(categories: KassalCategory[] | null): string {
   return leaf.name;
 }
 
+/** Parses "4x110g" / "4 x 110 g" style multipack names — e.g. Skyr Mini sold as one pack of several single-serve cups. */
+function parseMultipack(name: string): { count: number; unitGrams: number } | null {
+  const match = name.match(/(\d+)\s*[xX×]\s*(\d+)\s*(g|ml)/);
+  if (!match) return null;
+  return { count: Number(match[1]), unitGrams: Number(match[2]) };
+}
+
 export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIWI"): FoodItem {
   const category = guessCategory(product.category);
   const per100 = kassalNutritionToPer100(product.nutrition);
@@ -149,12 +156,21 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
   const weightIn100Units = product.weight > 0 ? product.weight / 100 : 1;
   const pricePerUnit = product.current_price ? Math.round((product.current_price / weightIn100Units) * 100) / 100 : 0;
 
+  const isLosvekt = product.name.toLowerCase().includes("løsvekt");
+
   // Kassal's own leaf category (e.g. "Ost") is checked before the product name — a cheese
   // branded "Norvegia" never says "ost" in its name, but its Kassal category does.
   const leafCat = leafCategoryName(product.category);
+  const multipack = parseMultipack(product.name);
   let commonUnits = deriveSmartUnits([leafCat, product.name]);
+  if (multipack && !commonUnits.some((u) => u.label === "stk")) {
+    commonUnits = [{ label: "stk", grams: multipack.unitGrams }, ...commonUnits];
+  }
   if (commonUnits.length === 0 && product.weight_unit === "piece") {
     commonUnits = [{ label: "stk", grams: product.weight }];
+  }
+  if (isLosvekt && !commonUnits.some((u) => u.label === "kg")) {
+    commonUnits = [...commonUnits, { label: "kg", grams: 1000 }];
   }
 
   return {
@@ -171,7 +187,9 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
     unitPriceLabel: product.current_unit_price ? `${product.current_unit_price} kr/${product.weight_unit === "g" || product.weight_unit === "ml" ? "kg/l" : product.weight_unit}` : undefined,
     storeCode,
     commonUnits: commonUnits.length > 0 ? commonUnits : undefined,
-    packageWeight: product.weight > 0 ? product.weight : undefined,
+    // Løsvekt items (poteter, løk sold by weight) have no fixed package to round up to —
+    // buy exactly what's needed, not a rounded-up "pack".
+    packageWeight: !isLosvekt && product.weight > 0 ? product.weight : undefined,
     description: product.description ?? undefined,
     ingredientsText: product.ingredients ?? undefined,
     labels: product.labels?.map((l) => l.display_name) ?? undefined,
