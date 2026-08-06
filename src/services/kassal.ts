@@ -77,32 +77,34 @@ export async function searchKassalProducts(query: string, store = "KIWI", size =
   return json.data ?? [];
 }
 
-// Matches Kassal's free-text nutrition display_name to our fixed Macros shape.
-// Kassal doesn't expose a stable `code` enum, so we match on Norwegian labels instead.
-function matchNutrition(nutrition: KassalNutrition[], keywords: string[]): number {
-  const hit = nutrition.find((n) => {
-    const name = n.display_name.toLowerCase();
-    return keywords.some((k) => name.includes(k));
-  });
-  return hit?.amount ?? 0;
+// Kassal's `code` field is a stable, unambiguous identifier (confirmed against real API
+// responses: energi_kcal, fett_totalt, mettet_fett, karbohydrater, sukkerarter, kostfiber,
+// salt, protein). We match on code first. display_name is NOT safe to substring-match on —
+// "Mettet fett", "Enumettet fett", and "Flerumettet fett" all contain "fett"/"mettet", so a
+// naive .includes() check picks the wrong row depending on array order.
+// Fallback only for the rare product missing a populated `code` — exact (not substring)
+// display_name match, so it can't collide with a similarly-worded sibling row.
+function findByExactName(nutrition: KassalNutrition[], name: string): number {
+  return nutrition.find((n) => n.display_name.toLowerCase() === name)?.amount ?? 0;
 }
 
-/**
- * Converts a Kassal product's per-package nutrition table into per-100g/ml values.
- * Kassal generally reports nutrition per 100g already, but we normalize defensively
- * in case a product reports per-package instead.
- */
+function nutritionValue(nutrition: KassalNutrition[], code: string, exactNameFallback: string): number {
+  const byCode = nutrition.find((n) => n.code === code);
+  if (byCode) return byCode.amount;
+  return findByExactName(nutrition, exactNameFallback);
+}
+
 export function kassalNutritionToPer100(nutrition: KassalNutrition[]): Macros {
   if (!nutrition || nutrition.length === 0) return emptyMacros();
   return {
-    kcal: matchNutrition(nutrition, ["energi", "kcal"]),
-    protein: matchNutrition(nutrition, ["protein"]),
-    fat: matchNutrition(nutrition, ["fett"]) - matchNutrition(nutrition, ["hvorav mettede", "mettet"]),
-    saturatedFat: matchNutrition(nutrition, ["hvorav mettede", "mettet"]),
-    carbs: matchNutrition(nutrition, ["karbohydrat"]),
-    sugar: matchNutrition(nutrition, ["sukkerarter", "sukker"]),
-    fiber: matchNutrition(nutrition, ["fiber"]),
-    salt: matchNutrition(nutrition, ["salt"]),
+    kcal: nutritionValue(nutrition, "energi_kcal", "kalorier"),
+    protein: nutritionValue(nutrition, "protein", "protein"),
+    fat: nutritionValue(nutrition, "fett_totalt", "fett"),
+    saturatedFat: nutritionValue(nutrition, "mettet_fett", "mettet fett"),
+    carbs: nutritionValue(nutrition, "karbohydrater", "karbohydrater"),
+    sugar: nutritionValue(nutrition, "sukkerarter", "sukkerarter"),
+    fiber: nutritionValue(nutrition, "kostfiber", "kostfiber"),
+    salt: nutritionValue(nutrition, "salt", "salt"),
   };
 }
 
