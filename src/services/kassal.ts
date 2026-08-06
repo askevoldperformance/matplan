@@ -1,5 +1,6 @@
 import type { FoodItem, Macros } from "../types";
 import { emptyMacros } from "../utils/calculations";
+import { deriveSmartUnits } from "../utils/units";
 
 export interface KassalNutrition {
   code: string;
@@ -134,6 +135,13 @@ export function isProduceCategory(category: FoodItem["category"]): boolean {
   return category === "Frukt" || category === "Grønnsaker";
 }
 
+/** The deepest/most specific category Kassal assigned (e.g. "Ost", "Paprika", "Epler") — far more reliable than guessing from the product name. */
+function leafCategoryName(categories: KassalCategory[] | null): string {
+  if (!categories || categories.length === 0) return "";
+  const leaf = categories.reduce((max, c) => (c.depth > max.depth ? c : max), categories[0]);
+  return leaf.name;
+}
+
 export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIWI"): FoodItem {
   const category = guessCategory(product.category);
   const per100 = kassalNutritionToPer100(product.nutrition);
@@ -141,16 +149,12 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
   const weightIn100Units = product.weight > 0 ? product.weight / 100 : 1;
   const pricePerUnit = product.current_price ? Math.round((product.current_price / weightIn100Units) * 100) / 100 : 0;
 
-  // Best-effort "1 unit" estimate from the product's own package weight, on top of the
-  // category defaults in utils/units.ts — genuinely just a starting guess, always editable.
-  const commonUnits: { label: string; grams: number }[] = [];
-  const nameLower = product.name.toLowerCase();
-  if (product.weight_unit === "piece" || nameLower.includes(" stk")) {
-    commonUnits.push({ label: "stk", grams: product.weight });
-  }
-  if (category === "Kornvarer" && (nameLower.includes("brød") || nameLower.includes("loff"))) {
-    // Assume a standard loaf slices into ~16 — rough estimate, adjust if it's way off for a given product.
-    commonUnits.push({ label: "skive", grams: Math.round(product.weight / 16) });
+  // Kassal's own leaf category (e.g. "Ost") is checked before the product name — a cheese
+  // branded "Norvegia" never says "ost" in its name, but its Kassal category does.
+  const leafCat = leafCategoryName(product.category);
+  let commonUnits = deriveSmartUnits([leafCat, product.name]);
+  if (commonUnits.length === 0 && product.weight_unit === "piece") {
+    commonUnits = [{ label: "stk", grams: product.weight }];
   }
 
   return {
