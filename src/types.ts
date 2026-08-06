@@ -88,6 +88,13 @@ export interface GroceryOverride {
   checked: boolean;
 }
 
+export interface ManualGroceryItem {
+  id: string;
+  periodKey: string; // matches the same period key used for grocery-checked state (isoWeek or yyyy-mm)
+  foodId: string;
+  grams: number;
+}
+
 export type GroceryRange = "uke" | "neste_uke" | "maned";
 
 export interface HouseholdState {
@@ -95,6 +102,7 @@ export interface HouseholdState {
   foods: FoodItem[];
   recipes: Recipe[];
   weekPlan: PlannedMeal[];
+  manualGroceryItems: ManualGroceryItem[];
   groceryChecked: Record<string, boolean>; // `${periodKey}:${foodId}` -> checked
   categoryOrder: string[];
 }

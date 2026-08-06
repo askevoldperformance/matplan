@@ -9,6 +9,8 @@ import {
   syncCategoryOrder,
   syncFood,
   syncGroceryChecked,
+  syncManualGroceryItem,
+  deleteManualGroceryItem,
   syncPerson,
   syncPlannedMeal,
   syncRecipe,
@@ -35,6 +37,8 @@ interface StoreActions {
   addMealItem: (mealId: string, item: { foodId: string; grams: number; personId: string }) => void;
   removeMealItem: (mealId: string, itemId: string) => void;
   ensureMealForSlot: (date: string, slot: PlannedMeal["slot"], personScope: string | null) => string;
+  addManualGroceryItem: (periodKey: string, foodId: string, grams: number) => void;
+  removeManualGroceryItem: (itemId: string) => void;
 
   selectedDate: string;
   setSelectedDate: (date: string) => void;
@@ -226,6 +230,19 @@ export const useStore = create<StoreState>((set, get) => ({
       const updated = weekPlan.find((m) => m.id === mealId);
       if (updated) syncPlannedMeal(updated);
       return { weekPlan };
+    }),
+
+  addManualGroceryItem: (periodKey, foodId, grams) =>
+    set((state) => {
+      const item = { id: `mg-${Date.now()}`, periodKey, foodId, grams };
+      syncManualGroceryItem(item);
+      return { manualGroceryItems: [...state.manualGroceryItems, item] };
+    }),
+
+  removeManualGroceryItem: (itemId) =>
+    set((state) => {
+      deleteManualGroceryItem(itemId);
+      return { manualGroceryItems: state.manualGroceryItems.filter((i) => i.id !== itemId) };
     }),
 
   moveCategory: (category, direction) =>

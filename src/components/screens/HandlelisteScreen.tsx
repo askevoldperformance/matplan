@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Share2, Sparkles, ArrowUp, ArrowDown } from "lucide-react";
+import { Share2, Sparkles, ArrowUp, ArrowDown, Plus, X } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import { aggregateGroceryList, groupGroceryByCategory, formatGramsOrUnit, calcKiwiBonus } from "../../utils/calculations";
 import { getWeekDates, startOfMonth, endOfMonth, isoWeekKey, monthKey, addDays } from "../../utils/dates";
 import ScreenHeader from "../ScreenHeader";
 import FoodThumb from "../FoodThumb";
 import Toggle from "../Toggle";
+import AddGroceryItemPanel from "../AddGroceryItemPanel";
 import type { GroceryRange } from "../../types";
 
 const RANGE_LABEL: Record<GroceryRange, string> = {
@@ -19,6 +20,8 @@ export default function HandlelisteScreen() {
     weekPlan,
     recipes,
     foods,
+    manualGroceryItems,
+    removeManualGroceryItem,
     groceryChecked,
     toggleGroceryChecked,
     categoryOrder,
@@ -32,6 +35,7 @@ export default function HandlelisteScreen() {
     setGroceryRange,
   } = useStore();
   const [toast, setToast] = useState(false);
+  const [showAddItem, setShowAddItem] = useState(false);
 
   const { rangeDates, periodKey } = useMemo(() => {
     if (groceryRange === "uke") {
@@ -58,7 +62,15 @@ export default function HandlelisteScreen() {
     [weekPlan, rangeDates]
   );
 
-  const lines = useMemo(() => aggregateGroceryList(mealsInRange, recipes, foods), [mealsInRange, recipes, foods]);
+  const manualItemsThisPeriod = useMemo(
+    () => manualGroceryItems.filter((i) => i.periodKey === periodKey),
+    [manualGroceryItems, periodKey]
+  );
+
+  const lines = useMemo(
+    () => aggregateGroceryList(mealsInRange, recipes, foods, manualItemsThisPeriod),
+    [mealsInRange, recipes, foods, manualItemsThisPeriod]
+  );
   const groups = useMemo(() => groupGroceryByCategory(lines), [lines]);
   const orderedCategories = useMemo(() => {
     const known = categoryOrder.filter((c) => groups[c]);
@@ -179,7 +191,7 @@ export default function HandlelisteScreen() {
           ))}
           {lines.length === 0 && (
             <p className="py-6 text-center text-[13px] text-(--color-ink-soft)">
-              Ingen måltider planlagt i denne perioden ennå.
+              Ingen måltider eller varer i denne perioden ennå.
             </p>
           )}
 
@@ -204,6 +216,43 @@ export default function HandlelisteScreen() {
                 </>
               )}
             </div>
+          )}
+        </div>
+
+        <div className="mt-4 rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
+          <p className="text-[14px] font-bold">Egne varer</p>
+          <p className="mb-3 text-[12px] text-(--color-ink-soft)">
+            Ting som ikke hører til noe måltid — f.eks. noe til barna. Telles med i totalen over.
+          </p>
+          {manualItemsThisPeriod.length > 0 && (
+            <div className="mb-3 flex flex-col gap-2">
+              {manualItemsThisPeriod.map((item) => {
+                const food = foods.find((f) => f.id === item.foodId);
+                if (!food) return null;
+                return (
+                  <div key={item.id} className="flex items-center gap-2 rounded-2xl bg-(--color-cream) p-2">
+                    <FoodThumb food={food} size={30} />
+                    <span className="flex-1 truncate text-[13px] font-semibold">
+                      {food.name} · {formatGramsOrUnit(food, item.grams)}
+                    </span>
+                    <button onClick={() => removeManualGroceryItem(item.id)} className="p-1">
+                      <X size={14} color="var(--color-orange-dark)" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!showAddItem ? (
+            <button
+              onClick={() => setShowAddItem(true)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[13px] font-bold text-white"
+              style={{ background: "var(--color-leaf)" }}
+            >
+              <Plus size={14} strokeWidth={3} /> Legg til vare
+            </button>
+          ) : (
+            <AddGroceryItemPanel periodKey={periodKey} onDone={() => setShowAddItem(false)} />
           )}
         </div>
 

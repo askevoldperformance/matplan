@@ -125,7 +125,7 @@ export async function loadHouseholdFromSupabase(): Promise<
 > {
   if (!supabase) return null;
 
-  const [peopleRes, foodsRes, recipesRes, ingredientsRes, mealsRes, categoryRes, settingsRes, groceryRes] =
+  const [peopleRes, foodsRes, recipesRes, ingredientsRes, mealsRes, categoryRes, settingsRes, groceryRes, manualRes] =
     await Promise.all([
       supabase.from("people").select("*"),
       supabase.from("foods").select("*"),
@@ -135,6 +135,7 @@ export async function loadHouseholdFromSupabase(): Promise<
       supabase.from("category_order").select("*").eq("household_id", HOUSEHOLD_ID).maybeSingle(),
       supabase.from("household_settings").select("*").eq("household_id", HOUSEHOLD_ID).maybeSingle(),
       supabase.from("grocery_checked").select("*"),
+      supabase.from("manual_grocery_items").select("*"),
     ]);
 
   if (peopleRes.error || foodsRes.error || recipesRes.error) {
@@ -167,6 +168,12 @@ export async function loadHouseholdFromSupabase(): Promise<
     foods: (foodsRes.data ?? []).map(rowToFood),
     recipes,
     weekPlan: (mealsRes.data ?? []).map(rowToPlannedMeal),
+    manualGroceryItems: (manualRes.data ?? []).map((r: any) => ({
+      id: r.id,
+      periodKey: r.period_key,
+      foodId: r.food_id,
+      grams: Number(r.grams),
+    })),
     groceryChecked,
     categoryOrder: categoryRes.data?.categories ?? [],
     kiwiPlussEnabled: settingsRes.data?.kiwi_pluss_enabled ?? true,
@@ -232,6 +239,23 @@ export function syncGroceryChecked(periodKey: string, foodId: string, checked: b
     ?.from("grocery_checked")
     .upsert({ household_id: HOUSEHOLD_ID, food_id: foodId, iso_week: periodKey, checked })
     .then(({ error }) => warn("grocery_checked")(error));
+}
+
+export function syncManualGroceryItem(item: { id: string; periodKey: string; foodId: string; grams: number }) {
+  supabase
+    ?.from("manual_grocery_items")
+    .upsert({
+      id: item.id,
+      household_id: HOUSEHOLD_ID,
+      period_key: item.periodKey,
+      food_id: item.foodId,
+      grams: item.grams,
+    })
+    .then(({ error }) => warn("manual_grocery_items")(error));
+}
+
+export function deleteManualGroceryItem(id: string) {
+  supabase?.from("manual_grocery_items").delete().eq("id", id).then(({ error }) => warn("manual_grocery_items delete")(error));
 }
 
 export async function loadSettings(): Promise<{ kiwiPlussEnabled: boolean; trippelTrumfToday: boolean } | null> {

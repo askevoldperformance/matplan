@@ -217,7 +217,8 @@ export interface GroceryLine {
 export function aggregateGroceryList(
   weekPlan: PlannedMeal[],
   recipes: Recipe[],
-  foods: FoodItem[]
+  foods: FoodItem[],
+  manualItems: { foodId: string; grams: number }[] = []
 ): GroceryLine[] {
   const recipeMap = new Map(recipes.map((r) => [r.id, r]));
   const foodMap = new Map(foods.map((f) => [f.id, f]));
@@ -240,6 +241,10 @@ export function aggregateGroceryList(
     for (const item of meal.items ?? []) {
       totals.set(item.foodId, (totals.get(item.foodId) ?? 0) + item.grams);
     }
+  }
+
+  for (const item of manualItems) {
+    totals.set(item.foodId, (totals.get(item.foodId) ?? 0) + item.grams);
   }
 
   const lines: GroceryLine[] = [];
