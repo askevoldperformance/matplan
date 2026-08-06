@@ -33,7 +33,7 @@ export default function OppskrifterScreen() {
   if (openRecipe && macros) {
     return (
       <div className="pb-28">
-        <ScreenHeader title="Oppskrifter" onBack={() => setOpenRecipeId(null)} />
+        <ScreenHeader title="Måltider" onBack={() => setOpenRecipeId(null)} />
         {showKassalSearch && <KassalSearchModal onClose={() => setShowKassalSearch(false)} />}
         <div className="px-4 pt-4">
           <div className="rounded-3xl p-5" style={{ background: "var(--color-cream-deep)" }}>
@@ -187,7 +187,7 @@ export default function OppskrifterScreen() {
   return (
     <div className="pb-28">
       <ScreenHeader
-        title="Oppskrifter"
+        title="Måltider"
         right={
           <button onClick={() => setShowKassalSearch(true)} className="rounded-full bg-white/70 p-2 active:bg-white">
             <Search size={18} color="var(--color-ink)" />
@@ -202,7 +202,7 @@ export default function OppskrifterScreen() {
           className="mb-3 flex w-full items-center justify-center gap-1.5 rounded-2xl py-3 text-[13.5px] font-bold text-white"
           style={{ background: "var(--color-leaf)" }}
         >
-          <Plus size={15} strokeWidth={3} /> Ny oppskrift
+          <Plus size={15} strokeWidth={3} /> Nytt måltid
         </button>
         <div className="flex flex-col gap-3">
           {recipes.map((r) => {
@@ -228,7 +228,7 @@ export default function OppskrifterScreen() {
           })}
           {recipes.length === 0 && (
             <p className="mt-6 text-center text-[13px] text-(--color-ink-soft)">
-              Ingen oppskrifter ennå. Trykk "Ny oppskrift" for å bygge din første.
+              Ingen måltider ennå. Trykk "Nytt måltid" for å bygge ditt første.
             </p>
           )}
         </div>

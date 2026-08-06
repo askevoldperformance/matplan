@@ -57,7 +57,7 @@ export default function RecipeBuilderModal({ onClose }: { onClose: () => void })
       {showKassalSearch && <KassalSearchModal onClose={() => setShowKassalSearch(false)} />}
       <div className="flex max-h-[88vh] w-full max-w-md flex-col rounded-3xl bg-(--color-cream) p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-[18px] font-bold">Ny oppskrift</h2>
+          <h2 className="font-display text-[18px] font-bold">Nytt måltid</h2>
           <button onClick={onClose} className="rounded-full bg-white p-1.5 shadow-sm">
             <X size={18} />
           </button>
@@ -73,7 +73,7 @@ export default function RecipeBuilderModal({ onClose }: { onClose: () => void })
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Navn på oppskriften..."
+              placeholder="Navn på måltidet..."
               className="flex-1 rounded-xl bg-white px-3 py-2.5 text-[14px] outline-none"
             />
           </div>
@@ -175,7 +175,7 @@ export default function RecipeBuilderModal({ onClose }: { onClose: () => void })
                   className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold text-white"
                   style={{ background: "var(--color-leaf)" }}
                 >
-                  <Plus size={14} strokeWidth={3} /> Legg til i oppskriften
+                  <Plus size={14} strokeWidth={3} /> Legg til i måltidet
                 </button>
               </>
             )}
@@ -188,7 +188,7 @@ export default function RecipeBuilderModal({ onClose }: { onClose: () => void })
           className="mt-4 w-full rounded-2xl py-3.5 text-center text-[14px] font-bold text-white disabled:opacity-40"
           style={{ background: "var(--color-orange)" }}
         >
-          LAGRE OPPSKRIFT
+          LAGRE MÅLTID
         </button>
       </div>
     </div>

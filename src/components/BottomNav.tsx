@@ -5,7 +5,7 @@ export type Tab = "dag" | "ukeplan" | "oppskrifter" | "produkter" | "handleliste
 const TABS: { id: Tab; label: string; Icon: typeof Home }[] = [
   { id: "dag", label: "Min Dag", Icon: Home },
   { id: "ukeplan", label: "Ukeplan", Icon: CalendarDays },
-  { id: "oppskrifter", label: "Oppskrifter", Icon: BookOpen },
+  { id: "oppskrifter", label: "Måltider", Icon: BookOpen },
   { id: "produkter", label: "Produkter", Icon: Package },
   { id: "handleliste", label: "Handleliste", Icon: ShoppingCart },
 ];
