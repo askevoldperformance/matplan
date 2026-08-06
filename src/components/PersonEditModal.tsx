@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { useStore } from "../store/useStore";
-import { ACTIVITY_LABEL, GOAL_LABEL } from "../utils/calculations";
-import type { ActivityLevel, Goal, Person } from "../types";
+import { ACTIVITY_LABEL, calculateTargetKcal, calculateTDEE } from "../utils/calculations";
+import type { ActivityLevel, Person } from "../types";
 import PersonAvatar from "./PersonAvatar";
+import Toggle from "./Toggle";
 
 export default function PersonEditModal({ person, onClose }: { person: Person; onClose: () => void }) {
   const updatePerson = useStore((s) => s.updatePerson);
@@ -14,8 +15,25 @@ export default function PersonEditModal({ person, onClose }: { person: Person; o
     activityLevel: person.activityLevel,
     goal: person.goal,
     goalRateKgPerWeek: person.goalRateKgPerWeek,
+    manualTargetKcal: person.manualTargetKcal ?? calculateTargetKcal(person),
     weightHidden: person.weightHidden,
   });
+
+  // Recalculated live as age/height/weight/activity change, so the helper text always
+  // reflects what the formula would suggest right now — independent of the manual override below.
+  const calculatedTdee = useMemo(
+    () =>
+      Math.round(
+        calculateTDEE({
+          ...person,
+          age: form.age,
+          heightCm: form.heightCm,
+          weightKg: form.weightKg,
+          activityLevel: form.activityLevel,
+        })
+      ),
+    [person, form.age, form.heightCm, form.weightKg, form.activityLevel]
+  );
 
   function save() {
     updatePerson(person.id, form);
@@ -74,46 +92,27 @@ export default function PersonEditModal({ person, onClose }: { person: Person; o
               ))}
             </select>
           </Field>
-          <Field label="Mål">
-            <select
-              value={form.goal}
-              onChange={(e) => setForm({ ...form, goal: e.target.value as Goal })}
+
+          <Field label="Dagsmål (kcal)">
+            <input
+              type="number"
+              value={form.manualTargetKcal}
+              onChange={(e) => setForm({ ...form, manualTargetKcal: Number(e.target.value) })}
               className="w-full rounded-xl bg-white px-3 py-2.5 text-[14px] outline-none"
-            >
-              {Object.entries(GOAL_LABEL).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            />
+            <p className="mt-1 text-[11.5px] text-(--color-ink-soft)">
+              Beregnet vedlikeholdsbehov ut fra vekt/høyde/aktivitet: {calculatedTdee} kcal. Vektprognosen
+              regnes automatisk ut fra forskjellen mellom dette dagsmålet og det beregnede behovet — du
+              trenger ikke fylle inn noe "endring per uke" separat.
+            </p>
           </Field>
-          {form.goal !== "vedlikehold" && (
-            <Field label="Endring per uke (kg)">
-              <input
-                type="number"
-                step="0.1"
-                value={form.goalRateKgPerWeek}
-                onChange={(e) => setForm({ ...form, goalRateKgPerWeek: Number(e.target.value) })}
-                className="w-full rounded-xl bg-white px-3 py-2.5 text-[14px] outline-none"
-              />
-            </Field>
-          )}
 
           <div className="flex items-center justify-between rounded-2xl bg-white p-3.5">
             <div>
               <p className="text-[14px] font-bold">Skjul vekt for partner</p>
               <p className="text-[11.5px] text-(--color-ink-soft)">Bare et UI-valg, ingen faktisk pålogging</p>
             </div>
-            <button
-              onClick={() => setForm({ ...form, weightHidden: !form.weightHidden })}
-              className="relative h-7 w-12 flex-none rounded-full transition-colors"
-              style={{ background: form.weightHidden ? "var(--color-sage-dark)" : "#D9D3C4" }}
-            >
-              <span
-                className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform"
-                style={{ transform: form.weightHidden ? "translateX(22px)" : "translateX(2px)" }}
-              />
-            </button>
+            <Toggle on={form.weightHidden} onChange={() => setForm({ ...form, weightHidden: !form.weightHidden })} activeColor="var(--color-sage-dark)" />
           </div>
         </div>
 

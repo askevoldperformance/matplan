@@ -26,6 +26,7 @@ export interface Person {
   activityLevel: ActivityLevel;
   goal: Goal;
   goalRateKgPerWeek: number; // e.g. 0.5 kg/week deficit target
+  manualTargetKcal?: number; // direct override — when set, this wins over the TDEE+goal formula
   color: "orange" | "yellow";
   weightHidden: boolean;
 }
@@ -45,6 +46,7 @@ export interface FoodItem {
   isFavorite?: boolean;
   storeCode?: string; // Kassal store group this was found in, e.g. "KIWI", "REMA_1000"
   commonUnits?: { label: string; grams: number }[]; // quick-add units, e.g. "skive" = 30g
+  packageWeight?: number; // grams/ml as actually sold — lets the grocery list round up to whole packages
 }
 
 export interface RecipeIngredient {

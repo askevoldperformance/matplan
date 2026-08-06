@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronRight, Search } from "lucide-react";
+import { Check, ChevronRight, Plus, Search } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import { recipePersonMacros, SLOT_LABELS } from "../../utils/calculations";
 import { getWeekDates, formatDayLabel, todayISO, addDays } from "../../utils/dates";
 import ScreenHeader from "../ScreenHeader";
 import FoodThumb from "../FoodThumb";
 import KassalSearchModal from "../KassalSearchModal";
+import RecipeBuilderModal from "../RecipeBuilderModal";
 import type { MealSlot } from "../../types";
 
 export default function OppskrifterScreen() {
@@ -18,6 +19,7 @@ export default function OppskrifterScreen() {
   const [addScope, setAddScope] = useState<string | null>(null); // null = begge
   const [justAdded, setJustAdded] = useState(false);
   const [showKassalSearch, setShowKassalSearch] = useState(false);
+  const [showRecipeBuilder, setShowRecipeBuilder] = useState(false);
 
   const openRecipe = recipes.find((r) => r.id === openRecipeId);
   const portionPerson = people.find((p) => p.id === portionPersonId)!;
@@ -193,7 +195,15 @@ export default function OppskrifterScreen() {
         }
       />
       {showKassalSearch && <KassalSearchModal onClose={() => setShowKassalSearch(false)} />}
+      {showRecipeBuilder && <RecipeBuilderModal onClose={() => setShowRecipeBuilder(false)} />}
       <div className="px-4 pt-4">
+        <button
+          onClick={() => setShowRecipeBuilder(true)}
+          className="mb-3 flex w-full items-center justify-center gap-1.5 rounded-2xl py-3 text-[13.5px] font-bold text-white"
+          style={{ background: "var(--color-leaf)" }}
+        >
+          <Plus size={15} strokeWidth={3} /> Ny oppskrift
+        </button>
         <div className="flex flex-col gap-3">
           {recipes.map((r) => {
             const m = recipePersonMacros(r, foods, 1);
@@ -216,6 +226,11 @@ export default function OppskrifterScreen() {
               </button>
             );
           })}
+          {recipes.length === 0 && (
+            <p className="mt-6 text-center text-[13px] text-(--color-ink-soft)">
+              Ingen oppskrifter ennå. Trykk "Ny oppskrift" for å bygge din første.
+            </p>
+          )}
         </div>
       </div>
     </div>

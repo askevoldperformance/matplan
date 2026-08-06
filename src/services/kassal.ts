@@ -164,5 +164,6 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
     unitPriceLabel: product.current_unit_price ? `${product.current_unit_price} kr/${product.weight_unit === "g" || product.weight_unit === "ml" ? "kg/l" : product.weight_unit}` : undefined,
     storeCode,
     commonUnits: commonUnits.length > 0 ? commonUnits : undefined,
+    packageWeight: product.weight > 0 ? product.weight : undefined,
   };
 }

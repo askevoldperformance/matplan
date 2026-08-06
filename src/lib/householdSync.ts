@@ -17,6 +17,7 @@ function rowToPerson(r: any): Person {
     goalRateKgPerWeek: r.goal_rate_kg_per_week,
     color: r.color,
     weightHidden: r.weight_hidden,
+    manualTargetKcal: r.manual_target_kcal ?? undefined,
   };
 }
 
@@ -35,6 +36,7 @@ function personToRow(p: Person) {
     goal_rate_kg_per_week: p.goalRateKgPerWeek,
     color: p.color,
     weight_hidden: p.weightHidden,
+    manual_target_kcal: p.manualTargetKcal ?? null,
   };
 }
 
@@ -54,6 +56,7 @@ function rowToFood(r: any): FoodItem {
     isFavorite: r.is_favorite ?? false,
     storeCode: r.store_code ?? undefined,
     commonUnits: r.common_units ?? undefined,
+    packageWeight: r.package_weight ?? undefined,
   };
 }
 
@@ -74,6 +77,7 @@ function foodToRow(f: FoodItem) {
     is_favorite: f.isFavorite ?? false,
     store_code: f.storeCode ?? null,
     common_units: f.commonUnits ?? null,
+    package_weight: f.packageWeight ?? null,
   };
 }
 

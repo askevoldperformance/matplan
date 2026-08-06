@@ -34,6 +34,7 @@ export function calculateTDEE(person: Person): number {
 }
 
 export function calculateTargetKcal(person: Person): number {
+  if (person.manualTargetKcal && person.manualTargetKcal > 0) return Math.round(person.manualTargetKcal);
   const tdee = calculateTDEE(person);
   const dailyDelta = (person.goalRateKgPerWeek * KCAL_PER_KG_FAT) / 7;
   if (person.goal === "ned") return Math.round(tdee - dailyDelta);
@@ -206,7 +207,9 @@ export function projectWeightSeries(person: Person, totalDays = 180, stepDays = 
 
 export interface GroceryLine {
   food: FoodItem;
-  totalGrams: number;
+  neededGrams: number; // how much the meal plan actually requires
+  totalGrams: number; // how much you'll end up buying (rounded up to whole packages, if known)
+  packagesToBuy?: number;
   estimatedPrice: number;
 }
 
@@ -243,11 +246,27 @@ export function aggregateGroceryList(
   for (const [foodId, grams] of totals.entries()) {
     const food = foodMap.get(foodId);
     if (!food) continue;
-    lines.push({
-      food,
-      totalGrams: Math.round(grams),
-      estimatedPrice: Math.round((grams / 100) * food.pricePerUnit),
-    });
+    const neededGrams = Math.round(grams);
+
+    // If we know the package size (from Kassal) and its price, buy whole packages —
+    // you can't purchase 200g of a 400g tray, so round up and price accordingly.
+    if (food.packageWeight && food.packageWeight > 0 && food.unitPrice) {
+      const packagesToBuy = Math.max(1, Math.ceil(neededGrams / food.packageWeight));
+      lines.push({
+        food,
+        neededGrams,
+        totalGrams: packagesToBuy * food.packageWeight,
+        packagesToBuy,
+        estimatedPrice: Math.round(packagesToBuy * food.unitPrice * 100) / 100,
+      });
+    } else {
+      lines.push({
+        food,
+        neededGrams,
+        totalGrams: neededGrams,
+        estimatedPrice: Math.round((neededGrams / 100) * food.pricePerUnit),
+      });
+    }
   }
   return lines.sort((a, b) => a.food.category.localeCompare(b.food.category));
 }

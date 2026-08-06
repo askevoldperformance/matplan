@@ -186,8 +186,8 @@ export default function ProdukterScreen() {
       </div>
 
       {detailFood && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-t-3xl bg-(--color-cream) p-5 safe-bottom">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-5 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-(--color-cream) p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-[17px] font-bold">{detailFood.name}</h2>
               <button onClick={() => setDetailFood(null)} className="rounded-full bg-white p-1.5 shadow-sm">

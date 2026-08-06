@@ -5,6 +5,7 @@ import { aggregateGroceryList, groupGroceryByCategory, formatGramsOrUnit, calcKi
 import { getWeekDates, startOfMonth, endOfMonth, isoWeekKey, monthKey, addDays } from "../../utils/dates";
 import ScreenHeader from "../ScreenHeader";
 import FoodThumb from "../FoodThumb";
+import Toggle from "../Toggle";
 import type { GroceryRange } from "../../types";
 
 const RANGE_LABEL: Record<GroceryRange, string> = {
@@ -71,7 +72,13 @@ export default function HandlelisteScreen() {
   );
 
   async function handleShare() {
-    const text = lines.map((l) => `- ${l.food.name} (${formatGramsOrUnit(l.food, l.totalGrams)})`).join("\n");
+    const text = lines
+      .map((l) =>
+        l.packagesToBuy
+          ? `- ${l.food.name} (${l.packagesToBuy} × ${formatGramsOrUnit(l.food, l.food.packageWeight!)})`
+          : `- ${l.food.name} (${formatGramsOrUnit(l.food, l.totalGrams)})`
+      )
+      .join("\n");
     const payload = `Handleliste 🛒 (${RANGE_LABEL[groceryRange]})\n${text}\n\nTotal: ${bonus.totalPrice} kr${
       kiwiPlussEnabled ? ` (etter Kiwi Pluss-bonus: ${bonus.netPrice} kr)` : ""
     }`;
@@ -150,13 +157,18 @@ export default function HandlelisteScreen() {
                       </span>
                       <FoodThumb food={line.food} size={32} />
                       <span
-                        className="min-w-0 flex-1 truncate text-[14px]"
+                        className="min-w-0 flex-1 text-[14px]"
                         style={{
                           textDecoration: checked ? "line-through" : "none",
                           color: checked ? "var(--color-ink-soft)" : "var(--color-ink)",
                         }}
                       >
-                        {line.food.name} ({formatGramsOrUnit(line.food, line.totalGrams)})
+                        <span className="block truncate">{line.food.name}</span>
+                        <span className="block text-[11.5px] text-(--color-ink-soft)">
+                          {line.packagesToBuy
+                            ? `Kjøp ${line.packagesToBuy} × ${formatGramsOrUnit(line.food, line.food.packageWeight!)} (trenger ${formatGramsOrUnit(line.food, line.neededGrams)})`
+                            : formatGramsOrUnit(line.food, line.totalGrams)}
+                        </span>
                       </span>
                     </button>
                   );
@@ -200,33 +212,14 @@ export default function HandlelisteScreen() {
               <p className="text-[14px] font-bold">Kiwi Pluss</p>
               <p className="text-[12px] text-(--color-ink-soft)">15% på frukt/grønt, 1% på resten</p>
             </div>
-            <button
-              onClick={toggleKiwiPluss}
-              className="relative h-7 w-12 flex-none rounded-full transition-colors"
-              style={{ background: kiwiPlussEnabled ? "var(--color-leaf)" : "#D9D3C4" }}
-            >
-              <span
-                className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform"
-                style={{ transform: kiwiPlussEnabled ? "translateX(22px)" : "translateX(2px)" }}
-              />
-            </button>
+            <Toggle on={kiwiPlussEnabled} onChange={toggleKiwiPluss} />
           </div>
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <Sparkles size={15} color="var(--color-orange)" />
               <p className="text-[14px] font-bold">Trippeltrumf i dag</p>
             </div>
-            <button
-              onClick={toggleTrippelTrumf}
-              disabled={!kiwiPlussEnabled}
-              className="relative h-7 w-12 flex-none rounded-full transition-colors disabled:opacity-40"
-              style={{ background: trippelTrumfToday ? "var(--color-orange)" : "#D9D3C4" }}
-            >
-              <span
-                className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform"
-                style={{ transform: trippelTrumfToday ? "translateX(22px)" : "translateX(2px)" }}
-              />
-            </button>
+            <Toggle on={trippelTrumfToday} onChange={toggleTrippelTrumf} disabled={!kiwiPlussEnabled} activeColor="var(--color-orange)" />
           </div>
           <p className="mt-2 text-[11.5px] text-(--color-ink-soft)">
             Trippeltrumf annonseres samme dag i Kiwi-appen — skru på manuelt de dagene det gjelder.
