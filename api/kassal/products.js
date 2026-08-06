@@ -7,8 +7,6 @@ export default async function handler(req, res) {
       search,
       size: size ?? 25,
       store: store ?? "KIWI",
-      unique: "true",
-      exclude_without_ean: "true",
     });
     res.status(status).json(data);
   } catch (err) {
