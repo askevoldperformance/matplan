@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "SF Pro Display", "Inter", system-ui, sans-serif;
+  --font-body: "SF Pro Text", "Inter", system-ui, sans-serif;
+
+  --color-sage: #8FAE87;
+  --color-sage-dark: #6F9268;
+  --color-cream: #FBF3E2;
+  --color-cream-deep: #F6EBD3;
+  --color-orange: #E8824A;
+  --color-orange-dark: #D96C36;
+  --color-yellow: #F3BE68;
+  --color-leaf: #4E8A52;
+  --color-leaf-light: #E1F0DE;
+  --color-ink: #2E2A22;
+  --color-ink-soft: #6B6558;
+  --color-card: #FFFFFF;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--color-cream);
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
