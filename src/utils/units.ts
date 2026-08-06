@@ -66,6 +66,14 @@ export function getUnitsForFood(food: FoodItem): FoodUnit[] {
 
   const seen = new Set(own.map((u) => u.label));
   const merged = [...own];
+
+  // "1 pakke" — for anything with a known package size, so you can add "2 pakker" of wipes
+  // or Skyr Mini directly without having to think in grams or stk at all.
+  if (food.packageWeight && food.packageWeight > 0 && !seen.has("pakke")) {
+    merged.push({ label: "pakke", grams: food.packageWeight });
+    seen.add("pakke");
+  }
+
   for (const u of UNIVERSAL_UNITS) {
     if (!seen.has(u.label)) {
       merged.push(u);

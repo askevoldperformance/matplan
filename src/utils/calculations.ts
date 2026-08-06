@@ -368,6 +368,10 @@ export function groupGroceryByCategory(lines: GroceryLine[]): Record<string, Gro
 }
 
 export function formatGramsOrUnit(food: FoodItem, grams: number): string {
+  // Count-only packs (wipes, etc.) internally represent "1 stk" as 1 gram-equivalent unit —
+  // show that as a count, not a weight.
+  const isCountOnly = food.commonUnits?.length === 1 && food.commonUnits[0].label === "stk" && food.commonUnits[0].grams === 1;
+  if (isCountOnly) return `${Math.round(grams)} stk`;
   if (food.category === "Meieri" && food.name.toLowerCase().includes("melk")) {
     return `${(grams / 1000).toFixed(1)} liter`.replace(".0", "");
   }

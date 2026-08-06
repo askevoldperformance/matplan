@@ -155,24 +155,62 @@ function parseMultipack(name: string): { count: number; unitGrams: number } | nu
   return { count: Number(match[1]), unitGrams: Number(match[2]) };
 }
 
+/**
+ * Kassal frequently leaves the structured `weight`/`weight_unit` fields null and only states
+ * the package size inside the product name itself ("Skyr Mini Jordbær 90g pose"). This is the
+ * fallback for exactly that case — checked before falling back further to a 1x guess.
+ */
+function parsePackageWeightFromName(name: string): number | null {
+  const kg = name.match(/(\d+[.,]?\d*)\s*kg\b/i);
+  if (kg) return Math.round(parseFloat(kg[1].replace(",", ".")) * 1000);
+  const l = name.match(/(\d+[.,]?\d*)\s*l\b/i);
+  if (l) return Math.round(parseFloat(l[1].replace(",", ".")) * 1000);
+  const g = name.match(/(\d+[.,]?\d*)\s*g\b/i);
+  if (g) return Math.round(parseFloat(g[1].replace(",", ".")));
+  const ml = name.match(/(\d+[.,]?\d*)\s*ml\b/i);
+  if (ml) return Math.round(parseFloat(ml[1].replace(",", ".")));
+  return null;
+}
+
+/** "100stk" style count-only packs (wipes, plasters, etc.) — sold and priced as one whole pack, not by weight. */
+function parseStkCountFromName(name: string): number | null {
+  const match = name.match(/(\d+)\s*stk\b/i);
+  return match ? Number(match[1]) : null;
+}
+
 export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIWI"): FoodItem {
   const category = guessCategory(product.category);
   const per100 = kassalNutritionToPer100(product.nutrition);
-  // Kassal's price is per package; convert to a per-100 price estimate using package weight.
-  const weightIn100Units = product.weight > 0 ? product.weight / 100 : 1;
-  const pricePerUnit = product.current_price ? Math.round((product.current_price / weightIn100Units) * 100) / 100 : 0;
-
   const isLosvekt = product.name.toLowerCase().includes("løsvekt");
+
+  const stkCount = parseStkCountFromName(product.name);
+  const parsedWeight = product.weight > 0 ? product.weight : parsePackageWeightFromName(product.name);
+
+  let packageWeight: number | undefined;
+  let pricePerUnit = 0;
+  let forcedCommonUnits: { label: string; grams: number }[] | undefined;
+
+  if (stkCount && stkCount > 1) {
+    // Count-only pack (e.g. "100stk" wipes) — 1 "stk" = 1 internal unit, the whole pack = stkCount units.
+    // Reuses the same gram-based package-rounding machinery everywhere else, just with "stk" as the unit.
+    packageWeight = stkCount;
+    pricePerUnit = product.current_price ? Math.round((product.current_price * 100) / stkCount * 100) / 100 : 0;
+    forcedCommonUnits = [{ label: "stk", grams: 1 }];
+  } else {
+    const weightIn100Units = parsedWeight && parsedWeight > 0 ? parsedWeight / 100 : 1;
+    pricePerUnit = product.current_price ? Math.round((product.current_price / weightIn100Units) * 100) / 100 : 0;
+    packageWeight = !isLosvekt && parsedWeight && parsedWeight > 0 ? parsedWeight : undefined;
+  }
 
   // Kassal's own leaf category (e.g. "Ost") is checked before the product name — a cheese
   // branded "Norvegia" never says "ost" in its name, but its Kassal category does.
   const leafCat = leafCategoryName(product.category);
   const multipack = parseMultipack(product.name);
-  let commonUnits = deriveSmartUnits([leafCat, product.name]);
-  if (multipack && !commonUnits.some((u) => u.label === "stk")) {
+  let commonUnits = forcedCommonUnits ?? deriveSmartUnits([leafCat, product.name]);
+  if (!forcedCommonUnits && multipack && !commonUnits.some((u) => u.label === "stk")) {
     commonUnits = [{ label: "stk", grams: multipack.unitGrams }, ...commonUnits];
   }
-  if (commonUnits.length === 0 && product.weight_unit === "piece") {
+  if (!forcedCommonUnits && commonUnits.length === 0 && product.weight_unit === "piece") {
     commonUnits = [{ label: "stk", grams: product.weight }];
   }
   if (isLosvekt && !commonUnits.some((u) => u.label === "kg")) {
@@ -195,7 +233,7 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
     commonUnits: commonUnits.length > 0 ? commonUnits : undefined,
     // Løsvekt items (poteter, løk sold by weight) have no fixed package to round up to —
     // buy exactly what's needed, not a rounded-up "pack".
-    packageWeight: !isLosvekt && product.weight > 0 ? product.weight : undefined,
+    packageWeight,
     description: product.description ?? undefined,
     ingredientsText: product.ingredients ?? undefined,
     labels: product.labels?.map((l) => l.display_name) ?? undefined,
