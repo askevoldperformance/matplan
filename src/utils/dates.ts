@@ -1,5 +1,12 @@
 export function toISODate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // Local date components, NOT toISOString() — toISOString() converts to UTC first, which
+  // silently shifts the date backward for any timezone ahead of UTC (all of Norway, always).
+  // That bug was the actual cause of "forward navigation does nothing": the +1 day intent
+  // got cancelled out by the UTC rollback on every call.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export function fromISODate(iso: string): Date {
@@ -63,6 +70,48 @@ export function formatDayDateLabel(iso: string): string {
 
 export function isSameDay(a: string, b: string): boolean {
   return a === b;
+}
+
+export function weekNumber(iso: string): number {
+  return Number(isoWeekKey(iso).split("-W")[1]);
+}
+
+export function formatMonthLabel(iso: string): string {
+  const label = fromISODate(iso).toLocaleDateString("nb-NO", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+export function formatShortDayLabel(iso: string): string {
+  const label = fromISODate(iso).toLocaleDateString("nb-NO", { weekday: "short" });
+  return label.charAt(0).toUpperCase() + label.slice(1).replace(".", "");
+}
+
+export function dayOfMonth(iso: string): number {
+  return fromISODate(iso).getDate();
+}
+
+export function addMonths(iso: string, months: number): string {
+  const d = fromISODate(iso);
+  return toISODate(new Date(d.getFullYear(), d.getMonth() + months, 1));
+}
+
+/** All dates to show in a calendar-month grid, including the leading/trailing days from adjacent weeks. */
+export function getMonthGridDates(anchorIso: string): string[] {
+  const firstOfMonth = startOfMonth(anchorIso);
+  const lastOfMonth = endOfMonth(anchorIso);
+  const gridStart = startOfWeek(firstOfMonth);
+  const gridEnd = addDays(startOfWeek(lastOfMonth), 6);
+  const dates: string[] = [];
+  let d = gridStart;
+  while (d <= gridEnd) {
+    dates.push(d);
+    d = addDays(d, 1);
+  }
+  return dates;
+}
+
+export function isSameMonth(iso: string, anchorIso: string): boolean {
+  return monthKey(iso) === monthKey(anchorIso);
 }
 
 export function todayISO(): string {

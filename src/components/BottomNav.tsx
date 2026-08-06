@@ -3,8 +3,8 @@ import { Home, CalendarDays, BookOpen, ShoppingCart, Package } from "lucide-reac
 export type Tab = "dag" | "ukeplan" | "oppskrifter" | "produkter" | "handleliste";
 
 const TABS: { id: Tab; label: string; Icon: typeof Home }[] = [
-  { id: "dag", label: "Min Dag", Icon: Home },
-  { id: "ukeplan", label: "Ukeplan", Icon: CalendarDays },
+  { id: "dag", label: "Min dag", Icon: Home },
+  { id: "ukeplan", label: "Matplan", Icon: CalendarDays },
   { id: "oppskrifter", label: "Måltider", Icon: BookOpen },
   { id: "produkter", label: "Produkter", Icon: Package },
   { id: "handleliste", label: "Handleliste", Icon: ShoppingCart },

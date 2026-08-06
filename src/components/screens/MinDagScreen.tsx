@@ -56,7 +56,7 @@ export default function MinDagScreen({ goTo }: { goTo: (t: Tab) => void }) {
     <div className="pb-28">
       <div className="safe-top flex items-center justify-between px-5 pb-6 pt-4" style={{ background: "var(--color-sage)" }}>
         <div>
-          <h1 className="font-display text-[22px] font-bold tracking-tight">Min Dag</h1>
+          <h1 className="font-display text-[22px] font-bold tracking-tight">Min dag</h1>
           <p className="text-[13px] capitalize text-(--color-ink)/70">{dayLabel}</p>
         </div>
       </div>
