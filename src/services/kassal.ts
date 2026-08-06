@@ -42,15 +42,12 @@ const API_BASE = "/api/kassal";
 export const STORE_OPTIONS: { code: string; label: string }[] = [
   { code: "KIWI", label: "Kiwi" },
   { code: "REMA_1000", label: "Rema 1000" },
-  { code: "COOP_EXTRA", label: "Coop Extra" },
   { code: "MENY_NO", label: "Meny" },
   { code: "SPAR_NO", label: "Spar" },
   { code: "JOKER_NO", label: "Joker" },
+  { code: "COOP_NO", label: "Coop" },
   { code: "BUNNPRIS", label: "Bunnpris" },
   { code: "EUROPRIS_NO", label: "Europris" },
-  { code: "COOP_MEGA", label: "Coop Mega" },
-  { code: "COOP_PRIX", label: "Coop Prix" },
-  { code: "COOP_OBS", label: "Coop Obs" },
 ];
 
 const logoCache = new Map<string, string | null>();
