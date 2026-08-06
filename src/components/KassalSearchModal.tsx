@@ -3,6 +3,7 @@ import { X, Search, Plus, Loader2 } from "lucide-react";
 import { searchKassalProducts, kassalProductToFoodItem, STORE_OPTIONS, type KassalProduct } from "../services/kassal";
 import { useStore } from "../store/useStore";
 import StoreSelector from "./StoreSelector";
+import KassalProductPreview from "./KassalProductPreview";
 
 export default function KassalSearchModal({ onClose }: { onClose: () => void }) {
   const { addFood, activeStore, setActiveStore } = useStore();
@@ -11,6 +12,7 @@ export default function KassalSearchModal({ onClose }: { onClose: () => void }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  const [previewProduct, setPreviewProduct] = useState<KassalProduct | null>(null);
 
   const storeLabel = STORE_OPTIONS.find((s) => s.code === activeStore)?.label ?? activeStore;
 
@@ -83,20 +85,22 @@ export default function KassalSearchModal({ onClose }: { onClose: () => void }) 
               const added = addedIds.has(p.id);
               return (
                 <div key={p.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-                  <div className="flex h-14 w-14 flex-none items-center justify-center overflow-hidden rounded-xl bg-(--color-cream)">
-                    {p.image ? (
-                      <img src={p.image} alt={p.name} className="h-full w-full object-contain p-0.5" loading="lazy" />
-                    ) : (
-                      <span className="text-2xl">🛒</span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13.5px] font-bold leading-tight">{p.name}</p>
-                    <p className="truncate text-[12px] text-(--color-ink-soft)">
-                      {p.brand ? `${p.brand} · ` : ""}
-                      {p.current_price ? `${p.current_price} kr` : "Pris ukjent"}
-                    </p>
-                  </div>
+                  <button onClick={() => setPreviewProduct(p)} className="flex flex-1 items-center gap-3 text-left">
+                    <div className="flex h-14 w-14 flex-none items-center justify-center overflow-hidden rounded-xl bg-(--color-cream)">
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="h-full w-full object-contain p-0.5" loading="lazy" />
+                      ) : (
+                        <span className="text-2xl">🛒</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13.5px] font-bold leading-tight">{p.name}</p>
+                      <p className="truncate text-[12px] text-(--color-ink-soft)">
+                        {p.brand ? `${p.brand} · ` : ""}
+                        {p.current_price ? `${p.current_price} kr` : "Pris ukjent"}
+                      </p>
+                    </div>
+                  </button>
                   <button
                     onClick={() => handleAdd(p)}
                     disabled={added}
@@ -115,6 +119,15 @@ export default function KassalSearchModal({ onClose }: { onClose: () => void }) 
           </div>
         </div>
       </div>
+
+      {previewProduct && (
+        <KassalProductPreview
+          product={previewProduct}
+          added={addedIds.has(previewProduct.id)}
+          onAdd={() => handleAdd(previewProduct)}
+          onClose={() => setPreviewProduct(null)}
+        />
+      )}
     </div>
   );
 }

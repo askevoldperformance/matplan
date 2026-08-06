@@ -5,6 +5,7 @@ import { searchKassalProducts, kassalProductToFoodItem, STORE_OPTIONS, type Kass
 import ScreenHeader from "../ScreenHeader";
 import FoodThumb from "../FoodThumb";
 import StoreSelector from "../StoreSelector";
+import KassalProductPreview from "../KassalProductPreview";
 import type { FoodItem } from "../../types";
 
 export default function ProdukterScreen() {
@@ -12,6 +13,7 @@ export default function ProdukterScreen() {
   const [query, setQuery] = useState("");
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [detailFood, setDetailFood] = useState<FoodItem | null>(null);
+  const [previewProduct, setPreviewProduct] = useState<KassalProduct | null>(null);
 
   const [remoteResults, setRemoteResults] = useState<KassalProduct[]>([]);
   const [remoteLoading, setRemoteLoading] = useState(false);
@@ -21,15 +23,22 @@ export default function ProdukterScreen() {
   const storeLabel = STORE_OPTIONS.find((s) => s.code === activeStore)?.label ?? activeStore;
 
   const localMatches = useMemo(() => {
+    if (onlyFavorites) {
+      return foods
+        .filter((f) => f.isFavorite)
+        .filter((f) => f.name.toLowerCase().includes(query.toLowerCase()))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (query.trim().length < 3) return [];
     return foods
-      .filter((f) => (onlyFavorites ? f.isFavorite : true))
       .filter((f) => f.name.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [foods, query, onlyFavorites]);
 
   // Live remote search: debounced, re-runs automatically when store or query changes.
+  // Skipped entirely while viewing Favoritter — that view is about what's already saved.
   useEffect(() => {
-    if (query.trim().length < 3) {
+    if (onlyFavorites || query.trim().length < 3) {
       setRemoteResults([]);
       setRemoteError(null);
       return;
@@ -47,7 +56,7 @@ export default function ProdukterScreen() {
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [query, activeStore]);
+  }, [query, activeStore, onlyFavorites]);
 
   function handleAddRemote(product: KassalProduct) {
     addFood(kassalProductToFoodItem(product, activeStore));
@@ -108,20 +117,22 @@ export default function ProdukterScreen() {
                 const added = addedIds.has(p.id);
                 return (
                   <div key={p.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-                    <div className="flex h-12 w-12 flex-none items-center justify-center overflow-hidden rounded-xl bg-(--color-cream)">
-                      {p.image ? (
-                        <img src={p.image} alt={p.name} className="h-full w-full object-contain p-0.5" loading="lazy" />
-                      ) : (
-                        <span className="text-xl">🛒</span>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-bold leading-tight">{p.name}</p>
-                      <p className="truncate text-[11.5px] text-(--color-ink-soft)">
-                        {p.brand ? `${p.brand} · ` : ""}
-                        {p.current_price ? `${p.current_price} kr` : "Pris ukjent"}
-                      </p>
-                    </div>
+                    <button onClick={() => setPreviewProduct(p)} className="flex flex-1 items-center gap-3 text-left">
+                      <div className="flex h-12 w-12 flex-none items-center justify-center overflow-hidden rounded-xl bg-(--color-cream)">
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} className="h-full w-full object-contain p-0.5" loading="lazy" />
+                        ) : (
+                          <span className="text-xl">🛒</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-bold leading-tight">{p.name}</p>
+                        <p className="truncate text-[11.5px] text-(--color-ink-soft)">
+                          {p.brand ? `${p.brand} · ` : ""}
+                          {p.current_price ? `${p.current_price} kr` : "Pris ukjent"}
+                        </p>
+                      </div>
+                    </button>
                     <button
                       onClick={() => handleAddRemote(p)}
                       disabled={added}
@@ -177,9 +188,11 @@ export default function ProdukterScreen() {
           ))}
           {localMatches.length === 0 && remoteResults.length === 0 && !remoteLoading && (
             <p className="mt-8 text-center text-[13px] text-(--color-ink-soft)">
-              {query.trim().length >= 3
-                ? `Ingen treff, verken lagret eller hos ${storeLabel}.`
-                : "Skriv minst 3 tegn for å søke."}
+              {onlyFavorites
+                ? "Ingen favoritter ennå. Stjernemerk et produkt for å legge det her."
+                : query.trim().length >= 3
+                  ? `Ingen treff, verken lagret eller hos ${storeLabel}.`
+                  : "Skriv minst 3 tegn for å søke."}
             </p>
           )}
         </div>
@@ -201,8 +214,33 @@ export default function ProdukterScreen() {
                 {detailFood.unitPriceLabel && (
                   <p className="text-[12px] text-(--color-ink-soft)">{detailFood.unitPriceLabel}</p>
                 )}
+                {detailFood.labels && detailFood.labels.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {detailFood.labels.map((l) => (
+                      <span key={l} className="rounded-full bg-(--color-leaf-light) px-2 py-0.5 text-[10.5px] font-semibold text-(--color-leaf)">
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
+            {(detailFood.description || detailFood.ingredientsText) && (
+              <div className="mt-3 rounded-2xl bg-white p-3">
+                {detailFood.description && (
+                  <>
+                    <p className="mb-1 text-[11.5px] font-semibold text-(--color-ink-soft)">Om produktet:</p>
+                    <p className="text-[12.5px] leading-snug">{detailFood.description}</p>
+                  </>
+                )}
+                {detailFood.ingredientsText && (
+                  <>
+                    <p className="mb-1 mt-2 text-[11.5px] font-semibold text-(--color-ink-soft)">Ingredienser:</p>
+                    <p className="text-[12px] leading-snug text-(--color-ink-soft)">{detailFood.ingredientsText}</p>
+                  </>
+                )}
+              </div>
+            )}
             <div className="mt-4 rounded-2xl bg-white p-3">
               <p className="mb-2 text-[12px] font-semibold text-(--color-ink-soft)">Næring per 100g:</p>
               <div className="flex justify-around text-center">
@@ -226,6 +264,15 @@ export default function ProdukterScreen() {
             </div>
           </div>
         </div>
+      )}
+
+      {previewProduct && (
+        <KassalProductPreview
+          product={previewProduct}
+          added={addedIds.has(previewProduct.id)}
+          onAdd={() => handleAddRemote(previewProduct)}
+          onClose={() => setPreviewProduct(null)}
+        />
       )}
     </div>
   );

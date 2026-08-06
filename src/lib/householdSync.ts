@@ -57,6 +57,9 @@ function rowToFood(r: any): FoodItem {
     storeCode: r.store_code ?? undefined,
     commonUnits: r.common_units ?? undefined,
     packageWeight: r.package_weight ?? undefined,
+    description: r.description ?? undefined,
+    ingredientsText: r.ingredients_text ?? undefined,
+    labels: r.labels ?? undefined,
   };
 }
 
@@ -78,6 +81,9 @@ function foodToRow(f: FoodItem) {
     store_code: f.storeCode ?? null,
     common_units: f.commonUnits ?? null,
     package_weight: f.packageWeight ?? null,
+    description: f.description ?? null,
+    ingredients_text: f.ingredientsText ?? null,
+    labels: f.labels ?? null,
   };
 }
 

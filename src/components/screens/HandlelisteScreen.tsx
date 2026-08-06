@@ -118,9 +118,10 @@ export default function HandlelisteScreen() {
         <div className="mt-4 rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
           {orderedCategories.map((category, idx) => (
             <div key={category} className="mb-4 last:mb-0">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[13px] font-bold">{category}</p>
-                <div className="flex gap-1">
+              <div className="mb-2 grid grid-cols-[44px_1fr_44px] items-center">
+                <span />
+                <p className="text-center text-[13px] font-bold">{category}</p>
+                <div className="flex justify-end gap-1">
                   <button
                     onClick={() => moveCategory(category, "up")}
                     disabled={idx === 0}

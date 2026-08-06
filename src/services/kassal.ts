@@ -22,6 +22,9 @@ export interface KassalProduct {
   ean: string | null;
   image: string | null;
   category: KassalCategory[] | null;
+  description: string | null;
+  ingredients: string | null;
+  labels: { display_name: string }[] | null;
   current_price: number | null;
   current_unit_price: number | null;
   weight: number;
@@ -165,5 +168,8 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
     storeCode,
     commonUnits: commonUnits.length > 0 ? commonUnits : undefined,
     packageWeight: product.weight > 0 ? product.weight : undefined,
+    description: product.description ?? undefined,
+    ingredientsText: product.ingredients ?? undefined,
+    labels: product.labels?.map((l) => l.display_name) ?? undefined,
   };
 }
