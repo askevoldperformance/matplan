@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Share2, Sparkles, ArrowUp, ArrowDown, Plus, X } from "lucide-react";
+import { Share2, Sparkles, ArrowUp, ArrowDown, Plus, X, PlusCircle, MinusCircle, Trash2, RotateCcw } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import {
   aggregateGroceryList,
@@ -7,13 +7,16 @@ import {
   groupGroceryByStore,
   formatGramsOrUnit,
   isTrumfStore,
+  type GroceryLine,
 } from "../../utils/calculations";
 import { getWeekDates, startOfMonth, endOfMonth, isoWeekKey, monthKey, addDays } from "../../utils/dates";
 import { STORE_OPTIONS, fetchStoreLogo } from "../../services/kassal";
+import { getUnitsForFood } from "../../utils/units";
 import ScreenHeader from "../ScreenHeader";
 import FoodThumb from "../FoodThumb";
 import Toggle from "../Toggle";
 import AddGroceryItemPanel from "../AddGroceryItemPanel";
+import NumberField from "../NumberField";
 import type { GroceryRange } from "../../types";
 
 const RANGE_LABEL: Record<GroceryRange, string> = {
@@ -51,6 +54,71 @@ function StoreLogo({ storeCode }: { storeCode: string }) {
   );
 }
 
+// Inline "adjust quantity" row — add or subtract a specific amount for a food already on
+// the list, without going through meal planning at all.
+function AdjustQuantityRow({
+  food,
+  periodKey,
+  onDone,
+}: {
+  food: GroceryLine["food"];
+  periodKey: string;
+  onDone: () => void;
+}) {
+  const addManualGroceryItem = useStore((s) => s.addManualGroceryItem);
+  const units = getUnitsForFood(food);
+  const [qty, setQty] = useState(1);
+  const [unitIdx, setUnitIdx] = useState(0);
+  const [sign, setSign] = useState<1 | -1>(1);
+
+  function confirm() {
+    const unit = units[unitIdx];
+    const grams = (unit ? unit.grams * qty : qty) * sign;
+    addManualGroceryItem(periodKey, food.id, grams);
+    onDone();
+  }
+
+  return (
+    <div className="mt-2 rounded-2xl bg-(--color-cream) p-2.5">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setSign(sign === 1 ? -1 : 1)}
+          className="flex-none rounded-full px-2.5 py-1.5 text-[13px] font-bold text-white"
+          style={{ background: sign === 1 ? "var(--color-leaf)" : "var(--color-orange)" }}
+        >
+          {sign === 1 ? "+" : "−"}
+        </button>
+        <NumberField
+          min={0.25}
+          step={0.25}
+          value={qty}
+          onChange={setQty}
+          className="w-14 rounded-xl bg-white px-2 py-1.5 text-center text-[14px] outline-none"
+        />
+        <div className="flex flex-1 gap-1.5 overflow-x-auto">
+          {units.map((u, i) => (
+            <button
+              key={u.label}
+              onClick={() => setUnitIdx(i)}
+              className="flex-none rounded-full px-3 py-1.5 text-[12px] font-semibold"
+              style={{ background: unitIdx === i ? "var(--color-sage)" : "white" }}
+            >
+              {u.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={confirm}
+        className="mt-2 w-full rounded-xl py-2 text-[12.5px] font-bold text-white"
+        style={{ background: "var(--color-ink)" }}
+      >
+        Bekreft
+      </button>
+    </div>
+  );
+}
+
 export default function HandlelisteScreen() {
   const {
     weekPlan,
@@ -60,6 +128,8 @@ export default function HandlelisteScreen() {
     removeManualGroceryItem,
     groceryChecked,
     toggleGroceryChecked,
+    groceryExcluded,
+    toggleGroceryExcluded,
     categoryOrder,
     moveCategory,
     kiwiPlussEnabled,
@@ -72,6 +142,8 @@ export default function HandlelisteScreen() {
   } = useStore();
   const [toast, setToast] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
+  const [adjustingFoodId, setAdjustingFoodId] = useState<string | null>(null);
+  const [showExcluded, setShowExcluded] = useState(false);
 
   const { rangeDates, periodKey } = useMemo(() => {
     if (groceryRange === "uke") {
@@ -103,10 +175,14 @@ export default function HandlelisteScreen() {
     [manualGroceryItems, periodKey]
   );
 
-  const lines = useMemo(
+  const allLines = useMemo(
     () => aggregateGroceryList(mealsInRange, recipes, foods, manualItemsThisPeriod),
     [mealsInRange, recipes, foods, manualItemsThisPeriod]
   );
+
+  const isExcluded = (foodId: string) => !!groceryExcluded[`${periodKey}:${foodId}`];
+  const lines = useMemo(() => allLines.filter((l) => !isExcluded(l.food.id)), [allLines, groceryExcluded, periodKey]);
+  const excludedLines = useMemo(() => allLines.filter((l) => isExcluded(l.food.id)), [allLines, groceryExcluded, periodKey]);
 
   const storeGroups = useMemo(
     () => groupGroceryByStore(lines, kiwiPlussEnabled, trippelTrumfToday),
@@ -214,37 +290,66 @@ export default function HandlelisteScreen() {
                   <div className="flex flex-col gap-2.5">
                     {groups[category].map((line) => {
                       const checked = !!groceryChecked[`${periodKey}:${line.food.id}`];
+                      const isAdjusting = adjustingFoodId === line.food.id;
                       return (
-                        <button
-                          key={line.food.id}
-                          onClick={() => toggleGroceryChecked(periodKey, line.food.id)}
-                          className="flex items-center gap-3 text-left"
-                        >
-                          <span
-                            className="flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 transition-colors"
-                            style={{
-                              borderColor: checked ? "var(--color-leaf)" : "#D9D3C4",
-                              background: checked ? "var(--color-leaf)" : "transparent",
-                            }}
-                          >
-                            {checked && <span className="text-[11px] leading-none text-white">✓</span>}
-                          </span>
-                          <FoodThumb food={line.food} size={32} />
-                          <span
-                            className="min-w-0 flex-1 text-[14px]"
-                            style={{
-                              textDecoration: checked ? "line-through" : "none",
-                              color: checked ? "var(--color-ink-soft)" : "var(--color-ink)",
-                            }}
-                          >
-                            <span className="block truncate">{line.food.name}</span>
-                            <span className="block text-[11.5px] text-(--color-ink-soft)">
-                              {line.packagesToBuy
-                                ? `Kjøp ${line.packagesToBuy} × ${formatGramsOrUnit(line.food, line.food.packageWeight!)} (trenger ${formatGramsOrUnit(line.food, line.neededGrams)})`
-                                : formatGramsOrUnit(line.food, line.totalGrams)}
-                            </span>
-                          </span>
-                        </button>
+                        <div key={line.food.id}>
+                          <div className="flex items-center gap-2.5">
+                            <button
+                              onClick={() => toggleGroceryChecked(periodKey, line.food.id)}
+                              className="flex flex-1 items-center gap-3 text-left"
+                            >
+                              <span
+                                className="flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 transition-colors"
+                                style={{
+                                  borderColor: checked ? "var(--color-leaf)" : "#D9D3C4",
+                                  background: checked ? "var(--color-leaf)" : "transparent",
+                                }}
+                              >
+                                {checked && <span className="text-[11px] leading-none text-white">✓</span>}
+                              </span>
+                              <FoodThumb food={line.food} size={32} />
+                              <span
+                                className="min-w-0 flex-1 text-[14px]"
+                                style={{
+                                  textDecoration: checked ? "line-through" : "none",
+                                  color: checked ? "var(--color-ink-soft)" : "var(--color-ink)",
+                                }}
+                              >
+                                <span className="block truncate">{line.food.name}</span>
+                                <span className="block text-[11.5px] text-(--color-ink-soft)">
+                                  {line.packagesToBuy
+                                    ? `Kjøp ${line.packagesToBuy} × ${formatGramsOrUnit(line.food, line.food.packageWeight!)} (trenger ${formatGramsOrUnit(line.food, line.neededGrams)})`
+                                    : formatGramsOrUnit(line.food, line.totalGrams)}
+                                </span>
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => setAdjustingFoodId(isAdjusting ? null : line.food.id)}
+                              className="flex-none p-1"
+                              title="Juster mengde"
+                            >
+                              {isAdjusting ? (
+                                <MinusCircle size={17} color="var(--color-ink-soft)" />
+                              ) : (
+                                <PlusCircle size={17} color="var(--color-ink-soft)" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => toggleGroceryExcluded(periodKey, line.food.id)}
+                              className="flex-none p-1"
+                              title="Fjern helt fra listen"
+                            >
+                              <Trash2 size={16} color="var(--color-orange-dark)" />
+                            </button>
+                          </div>
+                          {isAdjusting && (
+                            <AdjustQuantityRow
+                              food={line.food}
+                              periodKey={periodKey}
+                              onDone={() => setAdjustingFoodId(null)}
+                            />
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -267,6 +372,33 @@ export default function HandlelisteScreen() {
             </div>
           );
         })}
+
+        {excludedLines.length > 0 && (
+          <div className="mt-4">
+            <button
+              onClick={() => setShowExcluded((v) => !v)}
+              className="text-[12.5px] font-semibold text-(--color-ink-soft) underline"
+            >
+              {showExcluded ? "Skjul" : "Vis"} fjernede varer ({excludedLines.length})
+            </button>
+            {showExcluded && (
+              <div className="mt-2 flex flex-col gap-2">
+                {excludedLines.map((line) => (
+                  <div key={line.food.id} className="flex items-center gap-2 rounded-2xl bg-(--color-card) p-2.5">
+                    <FoodThumb food={line.food} size={28} />
+                    <span className="flex-1 truncate text-[13px] text-(--color-ink-soft)">{line.food.name}</span>
+                    <button
+                      onClick={() => toggleGroceryExcluded(periodKey, line.food.id)}
+                      className="flex flex-none items-center gap-1 rounded-full bg-(--color-leaf-light) px-2.5 py-1 text-[11.5px] font-semibold text-(--color-leaf)"
+                    >
+                      <RotateCcw size={12} /> Legg tilbake
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {storeGroups.length > 0 && (
           <div className="mt-4 rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">

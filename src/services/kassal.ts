@@ -77,6 +77,33 @@ export async function fetchStoreLogo(storeCode: string): Promise<string | null> 
   }
 }
 
+export interface BulkPriceResult {
+  ean: string;
+  stores: { store: string; current_price: number | null }[];
+}
+
+export async function fetchBulkPrices(eans: string[]): Promise<BulkPriceResult[]> {
+  if (eans.length === 0) return [];
+  const res = await fetch(`${API_BASE}/prices-bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eans, days: 7, aggregation: "min" }),
+  });
+  if (!res.ok) throw new Error(`Pris-oppdatering feilet (${res.status})`);
+  const json = await res.json();
+  return (json.data ?? []).map((item: any) => ({
+    ean: item.ean,
+    stores: (item.stores ?? []).map((s: any) => ({ store: s.store, current_price: s.current_price })),
+  }));
+}
+
+export async function fetchKassalProductById(id: number): Promise<KassalProduct> {
+  const res = await fetch(`${API_BASE}/products/id/${id}`);
+  if (!res.ok) throw new Error(`Kunne ikke hente produkt (${res.status})`);
+  const json = await res.json();
+  return json.data;
+}
+
 export async function searchKassalProducts(query: string, store = "KIWI", size = 25): Promise<KassalProduct[]> {
   if (query.trim().length < 3) return [];
   const res = await fetch(

@@ -4,6 +4,7 @@ import { useStore } from "../store/useStore";
 import { getUnitsForFood } from "../utils/units";
 import FoodThumb from "./FoodThumb";
 import KassalSearchModal from "./KassalSearchModal";
+import NumberField from "./NumberField";
 import type { Recipe, RecipeIngredient } from "../types";
 
 export default function RecipeBuilderModal({ onClose }: { onClose: () => void }) {
@@ -80,11 +81,10 @@ export default function RecipeBuilderModal({ onClose }: { onClose: () => void })
 
           <div className="mt-3 flex items-center gap-2">
             <span className="text-[12.5px] font-semibold text-(--color-ink-soft)">Grunnoppskrift for</span>
-            <input
-              type="number"
+            <NumberField
               min={1}
               value={basePortions}
-              onChange={(e) => setBasePortions(Math.max(1, Number(e.target.value)))}
+              onChange={(n) => setBasePortions(Math.max(1, n))}
               className="w-16 rounded-xl bg-white px-2 py-1.5 text-center text-[14px] outline-none"
             />
             <span className="text-[12.5px] font-semibold text-(--color-ink-soft)">porsjoner</span>
@@ -149,12 +149,11 @@ export default function RecipeBuilderModal({ onClose }: { onClose: () => void })
                   </button>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
-                  <input
-                    type="number"
+                  <NumberField
                     min={0.25}
                     step={0.25}
                     value={qty}
-                    onChange={(e) => setQty(Number(e.target.value))}
+                    onChange={setQty}
                     className="w-16 rounded-xl bg-white px-2 py-1.5 text-center text-[14px] outline-none"
                   />
                   <div className="flex flex-1 gap-1.5 overflow-x-auto">

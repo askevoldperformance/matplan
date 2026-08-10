@@ -159,8 +159,11 @@ export async function loadHouseholdFromSupabase(): Promise<
   }));
 
   const groceryChecked: Record<string, boolean> = {};
+  const groceryExcluded: Record<string, boolean> = {};
   for (const row of groceryRes.data ?? []) {
-    groceryChecked[`${row.iso_week}:${row.food_id}`] = row.checked;
+    const key = `${row.iso_week}:${row.food_id}`;
+    groceryChecked[key] = row.checked;
+    if (row.excluded) groceryExcluded[key] = true;
   }
 
   return {
@@ -175,6 +178,7 @@ export async function loadHouseholdFromSupabase(): Promise<
       grams: Number(r.grams),
     })),
     groceryChecked,
+    groceryExcluded,
     categoryOrder: categoryRes.data?.categories ?? [],
     kiwiPlussEnabled: settingsRes.data?.kiwi_pluss_enabled ?? true,
     trippelTrumfToday: settingsRes.data?.trippel_trumf_today ?? false,
@@ -239,6 +243,13 @@ export function syncGroceryChecked(periodKey: string, foodId: string, checked: b
     ?.from("grocery_checked")
     .upsert({ household_id: HOUSEHOLD_ID, food_id: foodId, iso_week: periodKey, checked })
     .then(({ error }) => warn("grocery_checked")(error));
+}
+
+export function syncGroceryExcluded(periodKey: string, foodId: string, excluded: boolean) {
+  supabase
+    ?.from("grocery_checked")
+    .upsert({ household_id: HOUSEHOLD_ID, food_id: foodId, iso_week: periodKey, excluded })
+    .then(({ error }) => warn("grocery_checked (excluded)")(error));
 }
 
 export function syncManualGroceryItem(item: { id: string; periodKey: string; foodId: string; grams: number }) {

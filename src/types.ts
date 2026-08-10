@@ -104,5 +104,6 @@ export interface HouseholdState {
   weekPlan: PlannedMeal[];
   manualGroceryItems: ManualGroceryItem[];
   groceryChecked: Record<string, boolean>; // `${periodKey}:${foodId}` -> checked
+  groceryExcluded: Record<string, boolean>; // `${periodKey}:${foodId}` -> removed entirely from the list this period
   categoryOrder: string[];
 }

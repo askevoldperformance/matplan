@@ -5,6 +5,7 @@ import { ACTIVITY_LABEL, calculateTargetKcal, calculateTDEE } from "../utils/cal
 import type { ActivityLevel, Person } from "../types";
 import PersonAvatar from "./PersonAvatar";
 import Toggle from "./Toggle";
+import NumberField from "./NumberField";
 
 export default function PersonEditModal({ person, onClose }: { person: Person; onClose: () => void }) {
   const updatePerson = useStore((s) => s.updatePerson);
@@ -55,27 +56,24 @@ export default function PersonEditModal({ person, onClose }: { person: Person; o
 
         <div className="flex flex-col gap-4">
           <Field label="Alder">
-            <input
-              type="number"
+            <NumberField
               value={form.age}
-              onChange={(e) => setForm({ ...form, age: Number(e.target.value) })}
+              onChange={(n) => setForm({ ...form, age: n })}
               className="w-full rounded-xl bg-white px-3 py-2.5 text-[14px] outline-none"
             />
           </Field>
           <Field label="Høyde (cm)">
-            <input
-              type="number"
+            <NumberField
               value={form.heightCm}
-              onChange={(e) => setForm({ ...form, heightCm: Number(e.target.value) })}
+              onChange={(n) => setForm({ ...form, heightCm: n })}
               className="w-full rounded-xl bg-white px-3 py-2.5 text-[14px] outline-none"
             />
           </Field>
           <Field label="Vekt (kg)">
-            <input
-              type="number"
-              step="0.1"
+            <NumberField
+              step={0.1}
               value={form.weightKg}
-              onChange={(e) => setForm({ ...form, weightKg: Number(e.target.value) })}
+              onChange={(n) => setForm({ ...form, weightKg: n })}
               className="w-full rounded-xl bg-white px-3 py-2.5 text-[14px] outline-none"
             />
           </Field>
@@ -94,10 +92,9 @@ export default function PersonEditModal({ person, onClose }: { person: Person; o
           </Field>
 
           <Field label="Dagsmål (kcal)">
-            <input
-              type="number"
+            <NumberField
               value={form.manualTargetKcal}
-              onChange={(e) => setForm({ ...form, manualTargetKcal: Number(e.target.value) })}
+              onChange={(n) => setForm({ ...form, manualTargetKcal: n })}
               className="w-full rounded-xl bg-white px-3 py-2.5 text-[14px] outline-none"
             />
             <p className="mt-1 text-[11.5px] text-(--color-ink-soft)">

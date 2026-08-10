@@ -53,6 +53,7 @@ export function createInitialState(): HouseholdState {
     weekPlan: [],
     manualGroceryItems: [],
     groceryChecked: {},
+    groceryExcluded: {},
     categoryOrder: DEFAULT_CATEGORY_ORDER,
   };
 }

@@ -12,6 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 8787;
 
 app.use(cors());
+app.use(express.json());
 
 if (!process.env.KASSAL_API_TOKEN) {
   console.warn(
@@ -61,6 +62,24 @@ app.get("/api/kassal/store-logo/:group", async (req, res) => {
     const { status, data } = await kassalFetch("/physical-stores", { group: req.params.group, size: 1 });
     const store = data?.data?.[0];
     res.status(status).json({ logo: store?.logo ?? null, name: store?.name ?? null });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ message: "Kunne ikke nå Kassal.app" });
+  }
+});
+
+// Bulk price refresh — much cheaper than refetching every product individually.
+app.post("/api/kassal/prices-bulk", async (req, res) => {
+  try {
+    const { eans, days, aggregation } = req.body ?? {};
+    const url = new URL(`${KASSAL_BASE}/products/prices-bulk`);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.KASSAL_API_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ eans, days: days ?? 7, aggregation: aggregation ?? "min" }),
+    });
+    const data = await response.json();
+    res.status(response.status).json(data);
   } catch (err) {
     console.error(err);
     res.status(502).json({ message: "Kunne ikke nå Kassal.app" });

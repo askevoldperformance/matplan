@@ -9,6 +9,7 @@ import {
   syncCategoryOrder,
   syncFood,
   syncGroceryChecked,
+  syncGroceryExcluded,
   syncManualGroceryItem,
   deleteManualGroceryItem,
   syncPerson,
@@ -17,6 +18,47 @@ import {
   syncSettings,
 } from "../lib/householdSync";
 import { supabaseConfigured } from "../lib/supabaseClient";
+import { fetchBulkPrices } from "../services/kassal";
+
+const PRICE_REFRESH_STORAGE_KEY = "matplan.lastPriceRefresh";
+
+async function refreshPricesIfStale(foods: FoodItem[], updateFood: (id: string, patch: Partial<FoodItem>) => void) {
+  const last = localStorage.getItem(PRICE_REFRESH_STORAGE_KEY);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  if (last && Date.now() - Number(last) < oneDayMs) return;
+
+  const withEan = foods.filter((f) => f.ean && f.storeCode);
+  if (withEan.length === 0) {
+    localStorage.setItem(PRICE_REFRESH_STORAGE_KEY, String(Date.now()));
+    return;
+  }
+
+  try {
+    // Kassal caps bulk lookups at 100 EANs per call — chunk if the household ever grows that big.
+    const chunks: FoodItem[][] = [];
+    for (let i = 0; i < withEan.length; i += 100) chunks.push(withEan.slice(i, i + 100));
+
+    for (const chunk of chunks) {
+      const results = await fetchBulkPrices(chunk.map((f) => f.ean!));
+      const byEan = new Map(results.map((r) => [r.ean, r]));
+      for (const food of chunk) {
+        const result = byEan.get(food.ean!);
+        const storeMatch = result?.stores.find((s) => s.store === food.storeCode);
+        if (storeMatch?.current_price != null && storeMatch.current_price !== food.unitPrice) {
+          const weightIn100Units = food.packageWeight && food.packageWeight > 0 ? food.packageWeight / 100 : 1;
+          updateFood(food.id, {
+            unitPrice: storeMatch.current_price,
+            pricePerUnit: Math.round((storeMatch.current_price / weightIn100Units) * 100) / 100,
+          });
+        }
+      }
+    }
+    localStorage.setItem(PRICE_REFRESH_STORAGE_KEY, String(Date.now()));
+  } catch (err) {
+    console.error("Price refresh failed", err);
+    // Don't set the timestamp on failure — retry next load instead of waiting a full day.
+  }
+}
 
 const VIEWER_STORAGE_KEY = "matplan.viewerPersonId";
 const STORE_STORAGE_KEY = "matplan.activeStore";
@@ -27,6 +69,7 @@ interface StoreActions {
 
   toggleEaten: (mealId: string, personId: string) => void;
   toggleGroceryChecked: (periodKey: string, foodId: string) => void;
+  toggleGroceryExcluded: (periodKey: string, foodId: string) => void;
   updatePerson: (personId: string, patch: Partial<Person>) => void;
   addFood: (food: FoodItem) => void;
   updateFood: (foodId: string, patch: Partial<FoodItem>) => void;
@@ -86,6 +129,7 @@ export const useStore = create<StoreState>((set, get) => ({
         loaded: true,
         categoryOrder: remote.categoryOrder.length ? remote.categoryOrder : initial.categoryOrder,
       });
+      refreshPricesIfStale(remote.foods, get().updateFood);
     } else {
       set({ ...initial, loaded: true });
     }
@@ -120,6 +164,14 @@ export const useStore = create<StoreState>((set, get) => ({
       const nextVal = !state.groceryChecked[key];
       syncGroceryChecked(periodKey, foodId, nextVal);
       return { groceryChecked: { ...state.groceryChecked, [key]: nextVal } };
+    }),
+
+  toggleGroceryExcluded: (periodKey, foodId) =>
+    set((state) => {
+      const key = `${periodKey}:${foodId}`;
+      const nextVal = !state.groceryExcluded[key];
+      syncGroceryExcluded(periodKey, foodId, nextVal);
+      return { groceryExcluded: { ...state.groceryExcluded, [key]: nextVal } };
     }),
 
   updatePerson: (personId, patch) =>
