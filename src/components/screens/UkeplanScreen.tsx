@@ -40,6 +40,7 @@ export default function UkeplanScreen() {
     updateMealPortion,
     removeMealItem,
     ensureMealForSlot,
+    addMealToPlan,
   } = useStore();
   const [activePersonId, setActivePersonId] = useState(people[0].id);
   const [viewMode, setViewMode] = useState<ViewMode>("dag");
@@ -117,6 +118,7 @@ export default function UkeplanScreen() {
             updateMealPortion={updateMealPortion}
             removeMealItem={removeMealItem}
             ensureMealForSlot={ensureMealForSlot}
+            addMealToPlan={addMealToPlan}
           />
         )}
 
@@ -164,7 +166,9 @@ function DagView({
   updateMealPortion,
   removeMealItem,
   ensureMealForSlot,
+  addMealToPlan,
 }: any) {
+  const [pickingMealSlot, setPickingMealSlot] = useState<string | null>(null);
   const todaysMeals = useMemo(
     () =>
       weekPlan
@@ -201,17 +205,54 @@ function DagView({
           const addingMeal = addingToMealId ? weekPlan.find((m: PlannedMeal) => m.id === addingToMealId) : null;
           const showEmptySlotPanel = mealsForSlot.length === 0 && addingMeal?.slot === slot && addingMeal?.date === selectedDate;
           if (mealsForSlot.length === 0) {
+            const isPicking = pickingMealSlot === slot;
             return (
               <div key={slot} className="rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
                 <p className="text-[15px] font-bold">{SLOT_LABELS[slot]}</p>
                 <p className="text-[12.5px] text-(--color-ink-soft)">Ingenting planlagt</p>
-                {editMode && !showEmptySlotPanel && (
-                  <button
-                    onClick={() => handleAddProductToSlot(slot)}
-                    className="mt-2 text-[12.5px] font-semibold text-(--color-orange-dark)"
-                  >
-                    + Legg til produkt
-                  </button>
+                {editMode && !showEmptySlotPanel && !isPicking && (
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setPickingMealSlot(slot)}
+                      className="text-[12.5px] font-semibold text-(--color-leaf)"
+                    >
+                      + Legg til måltid
+                    </button>
+                    <button
+                      onClick={() => handleAddProductToSlot(slot)}
+                      className="text-[12.5px] font-semibold text-(--color-orange-dark)"
+                    >
+                      + Legg til produkt
+                    </button>
+                  </div>
+                )}
+                {isPicking && (
+                  <div className="mt-2 max-h-64 overflow-y-auto rounded-2xl bg-(--color-cream) p-2">
+                    {recipes.length === 0 && (
+                      <p className="p-2 text-[12.5px] text-(--color-ink-soft)">
+                        Ingen lagrede måltider ennå — lag ett under Måltider-fanen først.
+                      </p>
+                    )}
+                    {recipes.map((r: any) => (
+                      <button
+                        key={r.id}
+                        onClick={() => {
+                          addMealToPlan(r.id, selectedDate, slot, null);
+                          setPickingMealSlot(null);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl p-2 text-left active:bg-white"
+                      >
+                        <span className="text-[20px]">{r.icon}</span>
+                        <span className="truncate text-[13px] font-semibold">{r.name}</span>
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPickingMealSlot(null)}
+                      className="mt-1 w-full rounded-xl py-1.5 text-center text-[12px] font-semibold text-(--color-ink-soft)"
+                    >
+                      Avbryt
+                    </button>
+                  </div>
                 )}
                 {showEmptySlotPanel && addingToMealId && (
                   <AddMealItemPanel mealId={addingToMealId} personId={person.id} onDone={() => setAddingToMealId(null)} />
