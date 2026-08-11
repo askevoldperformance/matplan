@@ -210,7 +210,8 @@ export interface GroceryLine {
   neededGrams: number; // how much the meal plan actually requires
   totalGrams: number; // how much you'll end up buying (rounded up to whole packages, if known)
   packagesToBuy?: number;
-  estimatedPrice: number;
+  estimatedPrice: number; // includes pant if applicable
+  pantTotal?: number;
 }
 
 /** Aggregates all ingredients across the whole week plan into one combined shopping list. */
@@ -252,17 +253,33 @@ export function aggregateGroceryList(
     const food = foodMap.get(foodId);
     if (!food) continue;
     const neededGrams = Math.round(grams);
+    const pant = food.pant ?? 0;
 
+    // Can't determine real package size at all — still can't buy a fraction of it, so
+    // always buy exactly 1, never a bogus per-gram estimate (this used to be the source of
+    // wildly wrong prices on products Kassal doesn't report a weight for).
+    if (food.packageSizeUnknown && food.unitPrice) {
+      lines.push({
+        food,
+        neededGrams,
+        totalGrams: neededGrams,
+        packagesToBuy: 1,
+        estimatedPrice: Math.round((food.unitPrice + pant) * 100) / 100,
+        pantTotal: pant || undefined,
+      });
+    }
     // If we know the package size (from Kassal) and its price, buy whole packages —
     // you can't purchase 200g of a 400g tray, so round up and price accordingly.
-    if (food.packageWeight && food.packageWeight > 0 && food.unitPrice) {
+    else if (food.packageWeight && food.packageWeight > 0 && food.unitPrice) {
       const packagesToBuy = Math.max(1, Math.ceil(neededGrams / food.packageWeight));
+      const pantTotal = pant * packagesToBuy;
       lines.push({
         food,
         neededGrams,
         totalGrams: packagesToBuy * food.packageWeight,
         packagesToBuy,
-        estimatedPrice: Math.round(packagesToBuy * food.unitPrice * 100) / 100,
+        estimatedPrice: Math.round((packagesToBuy * food.unitPrice + pantTotal) * 100) / 100,
+        pantTotal: pantTotal || undefined,
       });
     } else {
       lines.push({
@@ -368,6 +385,7 @@ export function groupGroceryByCategory(lines: GroceryLine[]): Record<string, Gro
 }
 
 export function formatGramsOrUnit(food: FoodItem, grams: number): string {
+  if (food.packageSizeUnknown) return "1 pakke";
   // Count-only packs (wipes, etc.) internally represent "1 stk" as 1 gram-equivalent unit —
   // show that as a count, not a weight.
   const isCountOnly = food.commonUnits?.length === 1 && food.commonUnits[0].label === "stk" && food.commonUnits[0].grams === 1;

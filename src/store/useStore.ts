@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { FoodItem, GroceryRange, HouseholdState, Person, PlannedMeal, Recipe } from "../types";
 import { createInitialState } from "../data/seed";
-import { todayISO } from "../utils/dates";
+import { todayISO, getWeekDates } from "../utils/dates";
 import { autoPortionFactor } from "../utils/calculations";
 import {
   loadHouseholdFromSupabase,
@@ -14,6 +14,7 @@ import {
   deleteManualGroceryItem,
   syncPerson,
   syncPlannedMeal,
+  deletePlannedMeal,
   syncRecipe,
   syncSettings,
 } from "../lib/householdSync";
@@ -80,6 +81,9 @@ interface StoreActions {
   addMealItem: (mealId: string, item: { foodId: string; grams: number; personId: string }) => void;
   removeMealItem: (mealId: string, itemId: string) => void;
   ensureMealForSlot: (date: string, slot: PlannedMeal["slot"], personScope: string | null) => string;
+  removeMeal: (mealId: string) => void;
+  removeMealsInRange: (dates: string[]) => void;
+  copyWeek: (sourceWeekStartIso: string, targetWeekStartIso: string) => void;
   addManualGroceryItem: (periodKey: string, foodId: string, grams: number) => void;
   removeManualGroceryItem: (itemId: string) => void;
 
@@ -263,6 +267,42 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => ({ weekPlan: [...s.weekPlan, newMeal] }));
     return newMeal.id;
   },
+
+  removeMeal: (mealId) =>
+    set((state) => {
+      deletePlannedMeal(mealId);
+      return { weekPlan: state.weekPlan.filter((m) => m.id !== mealId) };
+    }),
+
+  removeMealsInRange: (dates) =>
+    set((state) => {
+      const toRemove = state.weekPlan.filter((m) => dates.includes(m.date));
+      for (const m of toRemove) deletePlannedMeal(m.id);
+      return { weekPlan: state.weekPlan.filter((m) => !dates.includes(m.date)) };
+    }),
+
+  copyWeek: (sourceWeekStartIso, targetWeekStartIso) =>
+    set((state) => {
+      const sourceDates = getWeekDates(sourceWeekStartIso);
+      const targetDates = getWeekDates(targetWeekStartIso);
+      const newMeals: PlannedMeal[] = [];
+      for (let i = 0; i < 7; i++) {
+        const mealsThatDay = state.weekPlan.filter((m) => m.date === sourceDates[i]);
+        for (const m of mealsThatDay) {
+          const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          const copy: PlannedMeal = {
+            ...m,
+            id: `m-${suffix}`,
+            date: targetDates[i],
+            eatenBy: Object.fromEntries(Object.keys(m.eatenBy).map((k) => [k, false])),
+            items: m.items.map((it) => ({ ...it, id: `mi-${suffix}-${it.id}` })),
+          };
+          newMeals.push(copy);
+          syncPlannedMeal(copy);
+        }
+      }
+      return { weekPlan: [...state.weekPlan, ...newMeals] };
+    }),
 
   addMealItem: (mealId, item) =>
     set((state) => {

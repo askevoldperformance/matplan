@@ -317,9 +317,12 @@ export default function HandlelisteScreen() {
                               >
                                 <span className="block truncate">{line.food.name}</span>
                                 <span className="block text-[11.5px] text-(--color-ink-soft)">
-                                  {line.packagesToBuy
-                                    ? `Kjøp ${line.packagesToBuy} × ${formatGramsOrUnit(line.food, line.food.packageWeight!)} (trenger ${formatGramsOrUnit(line.food, line.neededGrams)})`
-                                    : formatGramsOrUnit(line.food, line.totalGrams)}
+                                  {line.food.packageSizeUnknown
+                                    ? `Kjøp 1 pakke (trenger ca ${formatGramsOrUnit(line.food, line.neededGrams)})`
+                                    : line.packagesToBuy
+                                      ? `Kjøp ${line.packagesToBuy} × ${formatGramsOrUnit(line.food, line.food.packageWeight!)} (trenger ${formatGramsOrUnit(line.food, line.neededGrams)})`
+                                      : formatGramsOrUnit(line.food, line.totalGrams)}
+                                  {line.pantTotal ? ` · +${line.pantTotal} kr pant` : ""}
                                 </span>
                               </span>
                             </button>

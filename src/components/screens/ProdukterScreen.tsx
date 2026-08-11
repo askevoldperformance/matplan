@@ -1,19 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Star, X, Plus, Loader2 } from "lucide-react";
+import { Search, Star, X, Plus, Loader2, RefreshCw } from "lucide-react";
 import { useStore } from "../../store/useStore";
-import { searchKassalProducts, kassalProductToFoodItem, STORE_OPTIONS, type KassalProduct } from "../../services/kassal";
+import { searchKassalProducts, kassalProductToFoodItem, fetchKassalProductById, fetchPriceComparison, STORE_OPTIONS, type KassalProduct } from "../../services/kassal";
 import ScreenHeader from "../ScreenHeader";
 import FoodThumb from "../FoodThumb";
 import StoreSelector from "../StoreSelector";
 import KassalProductPreview from "../KassalProductPreview";
 import type { FoodItem } from "../../types";
 
+function storeLabelFromCode(code?: string): string {
+  if (!code) return "ukjent butikk";
+  return STORE_OPTIONS.find((s) => s.code === code)?.label ?? code;
+}
+
 export default function ProdukterScreen() {
-  const { foods, toggleFavorite, addFood, activeStore, setActiveStore } = useStore();
+  const { foods, toggleFavorite, addFood, updateFood, activeStore, setActiveStore } = useStore();
   const [query, setQuery] = useState("");
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [detailFood, setDetailFood] = useState<FoodItem | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [previewProduct, setPreviewProduct] = useState<KassalProduct | null>(null);
+
+  const [checkingPrices, setCheckingPrices] = useState(false);
+  const [priceCheckError, setPriceCheckError] = useState<string | null>(null);
+  const [betterPrices, setBetterPrices] = useState<
+    { food: FoodItem; betterStoreCode: string; betterStoreName: string; betterPrice: number; diff: number }[]
+  >([]);
 
   const [remoteResults, setRemoteResults] = useState<KassalProduct[]>([]);
   const [remoteLoading, setRemoteLoading] = useState(false);
@@ -63,6 +76,62 @@ export default function ProdukterScreen() {
     setAddedIds((prev) => new Set(prev).add(product.id));
   }
 
+  async function handleRefreshFromStore(food: FoodItem) {
+    if (!food.kassalId) return;
+    setRefreshing(true);
+    setRefreshError(null);
+    try {
+      const fresh = await fetchKassalProductById(food.kassalId);
+      const mapped = kassalProductToFoodItem(fresh, food.storeCode ?? activeStore);
+      updateFood(food.id, { ...mapped, id: food.id, isFavorite: food.isFavorite });
+      setDetailFood({ ...mapped, id: food.id, isFavorite: food.isFavorite });
+    } catch {
+      setRefreshError("Fikk ikke oppdatert produktet. Prøv igjen om litt.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleCheckBetterPrices() {
+    setCheckingPrices(true);
+    setPriceCheckError(null);
+    setBetterPrices([]);
+    try {
+      const candidates = foods.filter((f) => f.ean && f.storeCode && f.unitPrice);
+      const results: typeof betterPrices = [];
+      // Sequential rather than Promise.all — this is a manual, occasional check, not worth
+      // hammering Kassal with a burst of parallel requests.
+      for (const food of candidates) {
+        try {
+          const comparisons = await fetchPriceComparison(food.ean!);
+          const cheaperElsewhere = comparisons
+            .filter((c) => c.storeCode !== food.storeCode)
+            .sort((a, b) => a.price - b.price)[0];
+          if (!cheaperElsewhere) continue;
+          const diff = Math.round((food.unitPrice! - cheaperElsewhere.price) * 100) / 100;
+          const diffPct = diff / food.unitPrice!;
+          // Only worth surfacing if the difference is meaningful — 1-3 kr doesn't matter.
+          if (diff >= 5 || diffPct >= 0.15) {
+            results.push({
+              food,
+              betterStoreCode: cheaperElsewhere.storeCode,
+              betterStoreName: cheaperElsewhere.storeName,
+              betterPrice: cheaperElsewhere.price,
+              diff,
+            });
+          }
+        } catch {
+          // one product failing shouldn't kill the whole check
+        }
+      }
+      setBetterPrices(results.sort((a, b) => b.diff - a.diff));
+    } catch {
+      setPriceCheckError("Fikk ikke sjekket priser. Prøv igjen om litt.");
+    } finally {
+      setCheckingPrices(false);
+    }
+  }
+
   return (
     <div className="pb-28">
       <ScreenHeader title="Produkter" />
@@ -105,6 +174,42 @@ export default function ProdukterScreen() {
           >
             <Star size={12} strokeWidth={2.5} /> Favoritter
           </button>
+        </div>
+
+        <div className="mt-4 rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[14px] font-bold">Bedre pris et annet sted?</p>
+              <p className="text-[11.5px] text-(--color-ink-soft)">
+                Sjekker dine lagrede produkter mot andre butikker — kun vesentlige forskjeller vises
+              </p>
+            </div>
+            <button
+              onClick={handleCheckBetterPrices}
+              disabled={checkingPrices}
+              className="flex-none rounded-full px-3 py-2 text-[12.5px] font-semibold text-white disabled:opacity-60"
+              style={{ background: "var(--color-leaf)" }}
+            >
+              {checkingPrices ? <Loader2 size={15} className="animate-spin" /> : "Sjekk"}
+            </button>
+          </div>
+          {priceCheckError && <p className="mt-2 text-[12.5px] text-(--color-orange-dark)">{priceCheckError}</p>}
+          {betterPrices.length > 0 && (
+            <div className="mt-3 flex flex-col gap-2">
+              {betterPrices.map(({ food, betterStoreName, betterPrice, diff }) => (
+                <div key={food.id} className="flex items-center gap-2.5 rounded-2xl bg-(--color-cream) p-2.5">
+                  <FoodThumb food={food} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-bold leading-tight">{food.name}</p>
+                    <p className="text-[11.5px] text-(--color-ink-soft)">
+                      {food.unitPrice} kr hos {storeLabelFromCode(food.storeCode)} → {betterPrice} kr hos {betterStoreName}
+                    </p>
+                  </div>
+                  <span className="flex-none text-[13px] font-bold text-(--color-leaf)">−{diff} kr</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {remoteError && <p className="mt-3 text-[13px] text-(--color-orange-dark)">{remoteError}</p>}
@@ -201,12 +306,23 @@ export default function ProdukterScreen() {
       {detailFood && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-5 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl bg-(--color-cream) p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-[17px] font-bold">{detailFood.name}</h2>
-              <button onClick={() => setDetailFood(null)} className="rounded-full bg-white p-1.5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="font-display flex-1 text-[17px] font-bold leading-tight">{detailFood.name}</h2>
+              {detailFood.kassalId && (
+                <button
+                  onClick={() => handleRefreshFromStore(detailFood)}
+                  disabled={refreshing}
+                  className="flex-none rounded-full bg-white p-1.5 shadow-sm disabled:opacity-50"
+                  title="Oppdater fra butikk"
+                >
+                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+                </button>
+              )}
+              <button onClick={() => setDetailFood(null)} className="flex-none rounded-full bg-white p-1.5 shadow-sm">
                 <X size={18} />
               </button>
             </div>
+            {refreshError && <p className="mb-2 text-[12px] text-(--color-orange-dark)">{refreshError}</p>}
             <div className="flex items-center gap-4">
               <FoodThumb food={detailFood} size={72} />
               <div>

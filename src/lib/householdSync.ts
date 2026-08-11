@@ -57,6 +57,8 @@ function rowToFood(r: any): FoodItem {
     storeCode: r.store_code ?? undefined,
     commonUnits: r.common_units ?? undefined,
     packageWeight: r.package_weight ?? undefined,
+    packageSizeUnknown: r.package_size_unknown ?? undefined,
+    pant: r.pant ?? undefined,
     description: r.description ?? undefined,
     ingredientsText: r.ingredients_text ?? undefined,
     labels: r.labels ?? undefined,
@@ -81,6 +83,8 @@ function foodToRow(f: FoodItem) {
     store_code: f.storeCode ?? null,
     common_units: f.commonUnits ?? null,
     package_weight: f.packageWeight ?? null,
+    package_size_unknown: f.packageSizeUnknown ?? false,
+    pant: f.pant ?? null,
     description: f.description ?? null,
     ingredients_text: f.ingredientsText ?? null,
     labels: f.labels ?? null,
@@ -218,6 +222,10 @@ export function syncRecipe(r: Recipe) {
 
 export function syncPlannedMeal(m: PlannedMeal) {
   supabase?.from("planned_meals").upsert(plannedMealToRow(m)).then(({ error }) => warn("planned_meal")(error));
+}
+
+export function deletePlannedMeal(id: string) {
+  supabase?.from("planned_meals").delete().eq("id", id).then(({ error }) => warn("planned_meal delete")(error));
 }
 
 export function syncCategoryOrder(categories: string[]) {

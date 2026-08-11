@@ -47,6 +47,8 @@ export interface FoodItem {
   storeCode?: string; // Kassal store group this was found in, e.g. "KIWI", "REMA_1000"
   commonUnits?: { label: string; grams: number }[]; // quick-add units, e.g. "skive" = 30g
   packageWeight?: number; // grams/ml as actually sold — lets the grocery list round up to whole packages
+  packageSizeUnknown?: boolean; // true when we truly can't determine package size — grocery list always buys "1" rather than guessing
+  pant?: number; // bottle/can deposit in kr, per package, added on top of price
   description?: string;
   ingredientsText?: string;
   labels?: string[]; // e.g. "Debio", "Nyt Norge"

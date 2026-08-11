@@ -97,6 +97,27 @@ export async function fetchBulkPrices(eans: string[]): Promise<BulkPriceResult[]
   }));
 }
 
+export interface StorePriceComparison {
+  storeCode: string;
+  storeName: string;
+  price: number;
+}
+
+/** All known store prices for one EAN — used to check if a saved product is cheaper elsewhere. */
+export async function fetchPriceComparison(ean: string): Promise<StorePriceComparison[]> {
+  const res = await fetch(`${API_BASE}/products/ean/${ean}`);
+  if (!res.ok) throw new Error(`Prissammenligning feilet (${res.status})`);
+  const json = await res.json();
+  const products = json?.data?.products ?? [];
+  return products
+    .map((p: any) => ({
+      storeCode: p.store?.[0]?.code ?? "UKJENT",
+      storeName: p.store?.[0]?.name ?? "Ukjent",
+      price: p.current_price?.[0]?.price,
+    }))
+    .filter((s: any) => typeof s.price === "number");
+}
+
 export async function fetchKassalProductById(id: number): Promise<KassalProduct> {
   const res = await fetch(`${API_BASE}/products/id/${id}`);
   if (!res.ok) throw new Error(`Kunne ikke hente produkt (${res.status})`);
@@ -205,6 +226,31 @@ function parseStkCountFromName(name: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+/** Parses ml/l volume specifically (not g/kg) — used only for pant detection, since pant applies to liquid containers, not solid weight. */
+function parseVolumeMl(name: string): number | null {
+  const l = name.match(/(\d+[.,]?\d*)\s*l\b/i);
+  if (l) return Math.round(parseFloat(l[1].replace(",", ".")) * 1000);
+  const ml = name.match(/(\d+[.,]?\d*)\s*ml\b/i);
+  if (ml) return Math.round(parseFloat(ml[1].replace(",", ".")));
+  return null;
+}
+
+const DRINK_KEYWORDS = [
+  "brus", "cola", "fanta", "sprite", "pepsi", "solo", "farris", "imsdal", "øl", "pilsner",
+  "cider", "energidrikk", "red bull", "redbull", "monster", "juice", "nectar", "saft", "iste",
+];
+
+/** Norwegian bottle/can deposit (pant) — 3 kr for 1–1.5l, 2 kr for ≤0.5l. Only for drink containers. */
+function computePant(name: string): number | undefined {
+  const nameLower = name.toLowerCase();
+  if (!DRINK_KEYWORDS.some((k) => nameLower.includes(k))) return undefined;
+  const ml = parseVolumeMl(name);
+  if (!ml) return undefined;
+  if (ml >= 1000) return 3;
+  if (ml <= 500) return 2;
+  return undefined; // ambiguous middle range (e.g. 0.7l) — skip rather than guess wrong
+}
+
 export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIWI"): FoodItem {
   const category = guessCategory(product.category);
   const per100 = kassalNutritionToPer100(product.nutrition);
@@ -214,6 +260,7 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
   const parsedWeight = product.weight > 0 ? product.weight : parsePackageWeightFromName(product.name);
 
   let packageWeight: number | undefined;
+  let packageSizeUnknown = false;
   let pricePerUnit = 0;
   let forcedCommonUnits: { label: string; grams: number }[] | undefined;
 
@@ -226,7 +273,16 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
   } else {
     const weightIn100Units = parsedWeight && parsedWeight > 0 ? parsedWeight / 100 : 1;
     pricePerUnit = product.current_price ? Math.round((product.current_price / weightIn100Units) * 100) / 100 : 0;
-    packageWeight = !isLosvekt && parsedWeight && parsedWeight > 0 ? parsedWeight : undefined;
+    if (isLosvekt) {
+      packageWeight = undefined; // buy by weight freely, no fixed package to round up to
+    } else if (parsedWeight && parsedWeight > 0) {
+      packageWeight = parsedWeight;
+    } else {
+      // Truly can't determine package size (Kassal gave no structured weight AND the name
+      // doesn't state one). Whatever this is, you still can't buy a fraction of it — so the
+      // grocery list must always round to "buy 1 whole item", never a bogus per-gram estimate.
+      packageSizeUnknown = true;
+    }
   }
 
   // Kassal's own leaf category (e.g. "Ost") is checked before the product name — a cheese
@@ -261,6 +317,8 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
     // Løsvekt items (poteter, løk sold by weight) have no fixed package to round up to —
     // buy exactly what's needed, not a rounded-up "pack".
     packageWeight,
+    packageSizeUnknown,
+    pant: computePant(product.name),
     description: product.description ?? undefined,
     ingredientsText: product.ingredients ?? undefined,
     labels: product.labels?.map((l) => l.display_name) ?? undefined,

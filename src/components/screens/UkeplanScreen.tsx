@@ -41,6 +41,9 @@ export default function UkeplanScreen() {
     removeMealItem,
     ensureMealForSlot,
     addMealToPlan,
+    removeMeal,
+    removeMealsInRange,
+    copyWeek,
   } = useStore();
   const [activePersonId, setActivePersonId] = useState(people[0].id);
   const [viewMode, setViewMode] = useState<ViewMode>("dag");
@@ -119,6 +122,7 @@ export default function UkeplanScreen() {
             removeMealItem={removeMealItem}
             ensureMealForSlot={ensureMealForSlot}
             addMealToPlan={addMealToPlan}
+            removeMeal={removeMeal}
           />
         )}
 
@@ -130,6 +134,8 @@ export default function UkeplanScreen() {
             weekPlan={weekPlan}
             recipeMap={recipeMap}
             onSelectDay={jumpToDay}
+            removeMealsInRange={removeMealsInRange}
+            copyWeek={copyWeek}
           />
         )}
 
@@ -140,6 +146,7 @@ export default function UkeplanScreen() {
             setSelectedDate={setSelectedDate}
             weekPlan={weekPlan}
             onSelectDay={jumpToDay}
+            removeMealsInRange={removeMealsInRange}
           />
         )}
       </div>
@@ -167,8 +174,10 @@ function DagView({
   removeMealItem,
   ensureMealForSlot,
   addMealToPlan,
+  removeMeal,
 }: any) {
   const [pickingMealSlot, setPickingMealSlot] = useState<string | null>(null);
+  const [swappingMealId, setSwappingMealId] = useState<string | null>(null);
   const todaysMeals = useMemo(
     () =>
       weekPlan
@@ -314,6 +323,49 @@ function DagView({
                   </button>
                 </div>
 
+                {editMode && (
+                  <div className="mt-2 flex gap-3 border-t border-(--color-cream-deep) pt-2">
+                    {recipe && (
+                      <button
+                        onClick={() => setSwappingMealId(swappingMealId === m.id ? null : m.id)}
+                        className="text-[12px] font-semibold text-(--color-leaf)"
+                      >
+                        Bytt måltid
+                      </button>
+                    )}
+                    <button
+                      onClick={() => removeMeal(m.id)}
+                      className="text-[12px] font-semibold text-(--color-orange-dark)"
+                    >
+                      Fjern
+                    </button>
+                  </div>
+                )}
+                {swappingMealId === m.id && (
+                  <div className="mt-2 max-h-64 overflow-y-auto rounded-2xl bg-(--color-cream) p-2">
+                    {recipes.map((r: any) => (
+                      <button
+                        key={r.id}
+                        onClick={() => {
+                          removeMeal(m.id);
+                          addMealToPlan(r.id, m.date, m.slot, m.personId ?? null);
+                          setSwappingMealId(null);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl p-2 text-left active:bg-white"
+                      >
+                        <span className="text-[20px]">{r.icon}</span>
+                        <span className="truncate text-[13px] font-semibold">{r.name}</span>
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setSwappingMealId(null)}
+                      className="mt-1 w-full rounded-xl py-1.5 text-center text-[12px] font-semibold text-(--color-ink-soft)"
+                    >
+                      Avbryt
+                    </button>
+                  </div>
+                )}
+
                 {myItems.length > 0 && (
                   <div className="mt-3 flex flex-col gap-1.5 border-t border-(--color-cream-deep) pt-3">
                     {myItems.map((it: any) => {
@@ -387,9 +439,26 @@ function DagView({
 
 // ---------- Uke ----------
 
-function UkeView({ person, selectedDate, setSelectedDate, weekPlan, recipeMap, onSelectDay }: any) {
+function UkeView({ person, selectedDate, setSelectedDate, weekPlan, recipeMap, onSelectDay, removeMealsInRange, copyWeek }: any) {
   const dates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
   const today = todayISO();
+  const [confirmingClear, setConfirmingClear] = useState(false);
+  const [showCopyPicker, setShowCopyPicker] = useState(false);
+
+  function handleClearWeek() {
+    if (!confirmingClear) {
+      setConfirmingClear(true);
+      setTimeout(() => setConfirmingClear(false), 4000);
+      return;
+    }
+    removeMealsInRange(dates);
+    setConfirmingClear(false);
+  }
+
+  function handleCopyTo(weeksAhead: number) {
+    copyWeek(dates[0], addDays(dates[0], weeksAhead * 7));
+    setShowCopyPicker(false);
+  }
 
   return (
     <>
@@ -402,6 +471,34 @@ function UkeView({ person, selectedDate, setSelectedDate, weekPlan, recipeMap, o
           <ChevronRight size={22} />
         </button>
       </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          onClick={() => setShowCopyPicker((v) => !v)}
+          className="rounded-full bg-(--color-card) px-3 py-1.5 text-[12.5px] font-semibold text-(--color-leaf)"
+        >
+          Kopier denne uken til...
+        </button>
+        <button
+          onClick={handleClearWeek}
+          className="rounded-full bg-(--color-card) px-3 py-1.5 text-[12.5px] font-semibold text-(--color-orange-dark)"
+        >
+          {confirmingClear ? "Trykk igjen for å bekrefte" : "Tøm uken"}
+        </button>
+      </div>
+      {showCopyPicker && (
+        <div className="mt-2 flex gap-2">
+          {[1, 2, 3, 4].map((n) => (
+            <button
+              key={n}
+              onClick={() => handleCopyTo(n)}
+              className="flex-1 rounded-full bg-(--color-card) py-2 text-[12.5px] font-semibold"
+            >
+              +{n} uke{n > 1 ? "r" : ""}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-col gap-2.5">
         {dates.map((date: string) => {
@@ -443,10 +540,11 @@ function UkeView({ person, selectedDate, setSelectedDate, weekPlan, recipeMap, o
 
 // ---------- Måned ----------
 
-function ManedView({ person, selectedDate, setSelectedDate, weekPlan, onSelectDay }: any) {
+function ManedView({ person, selectedDate, setSelectedDate, weekPlan, onSelectDay, removeMealsInRange }: any) {
   const gridDates = useMemo(() => getMonthGridDates(selectedDate), [selectedDate]);
   const today = todayISO();
   const weekdayHeaders = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"];
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   const mealCountByDate = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -456,6 +554,17 @@ function ManedView({ person, selectedDate, setSelectedDate, weekPlan, onSelectDa
     }
     return counts;
   }, [weekPlan, person]);
+
+  function handleClearMonth() {
+    if (!confirmingClear) {
+      setConfirmingClear(true);
+      setTimeout(() => setConfirmingClear(false), 4000);
+      return;
+    }
+    const monthDates = gridDates.filter((d: string) => isSameMonth(d, selectedDate));
+    removeMealsInRange(monthDates);
+    setConfirmingClear(false);
+  }
 
   return (
     <>
@@ -468,6 +577,13 @@ function ManedView({ person, selectedDate, setSelectedDate, weekPlan, onSelectDa
           <ChevronRight size={22} />
         </button>
       </div>
+
+      <button
+        onClick={handleClearMonth}
+        className="mt-3 rounded-full bg-(--color-card) px-3 py-1.5 text-[12.5px] font-semibold text-(--color-orange-dark)"
+      >
+        {confirmingClear ? "Trykk igjen for å bekrefte" : "Tøm måneden"}
+      </button>
 
       <div className="mt-4 rounded-3xl bg-(--color-card) p-3 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
         <div className="grid grid-cols-7 gap-1 text-center">
