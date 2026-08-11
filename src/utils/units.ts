@@ -82,3 +82,32 @@ export function getUnitsForFood(food: FoodItem): FoodUnit[] {
   }
   return merged;
 }
+
+/**
+ * Units for standalone grocery additions ("Egne varer", inline quantity adjustments) — you're
+ * always buying a WHOLE product at the store, never a fraction of one. Gram/dl/ss/ts never
+ * belong here even though they're valid for meal-ingredient tracking elsewhere; this list is
+ * "pakke"/"stk"/whole-item units only, "pakke" first since that's what's wanted most often.
+ */
+export function getPackageOnlyUnits(food: FoodItem): FoodUnit[] {
+  // Strict priority, no redundant options: a multipack (or anything with a known package
+  // weight) is bought as that whole package — showing "stk" alongside it would wrongly imply
+  // you could buy a single bottle out of a 6-pack separately.
+  if (food.packageWeight && food.packageWeight > 0) {
+    return [{ label: "pakke", grams: food.packageWeight }];
+  }
+  if (food.packageSizeUnknown) {
+    // Grams value is a placeholder — aggregateGroceryList always treats packageSizeUnknown
+    // foods as "buy exactly 1" regardless of the number here.
+    return [{ label: "pakke", grams: 1 }];
+  }
+  const stkUnit = food.commonUnits?.find((u) => u.label === "stk");
+  if (stkUnit) return [stkUnit];
+
+  // No package concept at all — likely løsvekt produce. Whole-item units (hel/halv/kg) are
+  // still fine here since you genuinely buy a whole cucumber or a kg bag, just never bare g/ss/ts.
+  const wholeItemUnits = deriveSmartUnits([food.name]).filter((u) => !["g", "ss", "ts"].includes(u.label));
+  if (wholeItemUnits.length > 0) return wholeItemUnits;
+
+  return [{ label: "stk", grams: 1 }];
+}

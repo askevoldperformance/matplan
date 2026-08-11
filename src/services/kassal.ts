@@ -196,11 +196,27 @@ function leafCategoryName(categories: KassalCategory[] | null): string {
   return leaf.name;
 }
 
-/** Parses "4x110g" / "4 x 110 g" style multipack names — e.g. Skyr Mini sold as one pack of several single-serve cups. */
+/** Parses "4x110g" / "4 x 110 g" AND "1,5lx6" / "1,5l x 6" style multipack names — either order. */
 function parseMultipack(name: string): { count: number; unitGrams: number } | null {
-  const match = name.match(/(\d+)\s*[xX×]\s*(\d+)\s*(g|ml)/);
-  if (!match) return null;
-  return { count: Number(match[1]), unitGrams: Number(match[2]) };
+  // count first: "6x1,5l", "4x110g"
+  let m = name.match(/(\d+)\s*[xX×]\s*(\d+[.,]?\d*)\s*(kg|g|l|ml)\b/i);
+  if (m) {
+    const count = Number(m[1]);
+    let unitGrams = parseFloat(m[2].replace(",", "."));
+    const unit = m[3].toLowerCase();
+    if (unit === "kg" || unit === "l") unitGrams *= 1000;
+    return { count, unitGrams: Math.round(unitGrams) };
+  }
+  // size first: "1,5lx6", "110g x 4"
+  m = name.match(/(\d+[.,]?\d*)\s*(kg|g|l|ml)\s*[xX×]\s*(\d+)\b/i);
+  if (m) {
+    let unitGrams = parseFloat(m[1].replace(",", "."));
+    const unit = m[2].toLowerCase();
+    if (unit === "kg" || unit === "l") unitGrams *= 1000;
+    const count = Number(m[3]);
+    return { count, unitGrams: Math.round(unitGrams) };
+  }
+  return null;
 }
 
 /**
@@ -240,15 +256,24 @@ const DRINK_KEYWORDS = [
   "cider", "energidrikk", "red bull", "redbull", "monster", "juice", "nectar", "saft", "iste",
 ];
 
-/** Norwegian bottle/can deposit (pant) — 3 kr for 1–1.5l, 2 kr for ≤0.5l. Only for drink containers. */
-function computePant(name: string): number | undefined {
-  const nameLower = name.toLowerCase();
-  if (!DRINK_KEYWORDS.some((k) => nameLower.includes(k))) return undefined;
-  const ml = parseVolumeMl(name);
-  if (!ml) return undefined;
+/** Norwegian bottle/can deposit (pant) — 3 kr for 1–1.5l, 2 kr for ≤0.5l. Only for drink containers.
+ * For multipacks (e.g. "6x1,5l"), this is per bottle × count — a 6-pack of 1.5l bottles is 18 kr, not 3. */
+function perBottlePant(ml: number): number | undefined {
   if (ml >= 1000) return 3;
   if (ml <= 500) return 2;
   return undefined; // ambiguous middle range (e.g. 0.7l) — skip rather than guess wrong
+}
+
+function computePant(name: string, multipack: { count: number; unitGrams: number } | null): number | undefined {
+  const nameLower = name.toLowerCase();
+  if (!DRINK_KEYWORDS.some((k) => nameLower.includes(k))) return undefined;
+  if (multipack) {
+    const perBottle = perBottlePant(multipack.unitGrams);
+    return perBottle ? perBottle * multipack.count : undefined;
+  }
+  const ml = parseVolumeMl(name);
+  if (!ml) return undefined;
+  return perBottlePant(ml);
 }
 
 export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIWI"): FoodItem {
@@ -257,6 +282,7 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
   const isLosvekt = product.name.toLowerCase().includes("løsvekt");
 
   const stkCount = parseStkCountFromName(product.name);
+  const multipack = parseMultipack(product.name);
   const parsedWeight = product.weight > 0 ? product.weight : parsePackageWeightFromName(product.name);
 
   let packageWeight: number | undefined;
@@ -270,6 +296,14 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
     packageWeight = stkCount;
     pricePerUnit = product.current_price ? Math.round((product.current_price * 100) / stkCount * 100) / 100 : 0;
     forcedCommonUnits = [{ label: "stk", grams: 1 }];
+  } else if (multipack) {
+    // "1,5lx6" style — the whole 6-pack is what's actually sold; "stk" (one bottle) is still
+    // useful for meal-level tracking, but the grocery-buyable package is the full multipack.
+    const totalPackGrams = multipack.count * multipack.unitGrams;
+    packageWeight = totalPackGrams;
+    const weightIn100Units = totalPackGrams / 100;
+    pricePerUnit = product.current_price ? Math.round((product.current_price / weightIn100Units) * 100) / 100 : 0;
+    forcedCommonUnits = [{ label: "stk", grams: multipack.unitGrams }];
   } else {
     const weightIn100Units = parsedWeight && parsedWeight > 0 ? parsedWeight / 100 : 1;
     pricePerUnit = product.current_price ? Math.round((product.current_price / weightIn100Units) * 100) / 100 : 0;
@@ -288,11 +322,7 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
   // Kassal's own leaf category (e.g. "Ost") is checked before the product name — a cheese
   // branded "Norvegia" never says "ost" in its name, but its Kassal category does.
   const leafCat = leafCategoryName(product.category);
-  const multipack = parseMultipack(product.name);
   let commonUnits = forcedCommonUnits ?? deriveSmartUnits([leafCat, product.name]);
-  if (!forcedCommonUnits && multipack && !commonUnits.some((u) => u.label === "stk")) {
-    commonUnits = [{ label: "stk", grams: multipack.unitGrams }, ...commonUnits];
-  }
   if (!forcedCommonUnits && commonUnits.length === 0 && product.weight_unit === "piece") {
     commonUnits = [{ label: "stk", grams: product.weight }];
   }
@@ -318,7 +348,7 @@ export function kassalProductToFoodItem(product: KassalProduct, storeCode = "KIW
     // buy exactly what's needed, not a rounded-up "pack".
     packageWeight,
     packageSizeUnknown,
-    pant: computePant(product.name),
+    pant: computePant(product.name, multipack),
     description: product.description ?? undefined,
     ingredientsText: product.ingredients ?? undefined,
     labels: product.labels?.map((l) => l.display_name) ?? undefined,

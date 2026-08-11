@@ -11,7 +11,7 @@ import {
 } from "../../utils/calculations";
 import { getWeekDates, startOfMonth, endOfMonth, isoWeekKey, monthKey, addDays } from "../../utils/dates";
 import { STORE_OPTIONS, fetchStoreLogo } from "../../services/kassal";
-import { getUnitsForFood } from "../../utils/units";
+import { getPackageOnlyUnits } from "../../utils/units";
 import ScreenHeader from "../ScreenHeader";
 import FoodThumb from "../FoodThumb";
 import Toggle from "../Toggle";
@@ -66,7 +66,7 @@ function AdjustQuantityRow({
   onDone: () => void;
 }) {
   const addManualGroceryItem = useStore((s) => s.addManualGroceryItem);
-  const units = getUnitsForFood(food);
+  const units = getPackageOnlyUnits(food);
   const [qty, setQty] = useState(1);
   const [unitIdx, setUnitIdx] = useState(0);
   const [sign, setSign] = useState<1 | -1>(1);

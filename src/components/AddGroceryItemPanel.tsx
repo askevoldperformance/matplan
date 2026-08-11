@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useStore } from "../store/useStore";
-import { getUnitsForFood } from "../utils/units";
+import { getPackageOnlyUnits } from "../utils/units";
 import FoodThumb from "./FoodThumb";
 import KassalSearchModal from "./KassalSearchModal";
 import NumberField from "./NumberField";
@@ -15,7 +15,7 @@ export default function AddGroceryItemPanel({ periodKey, onDone }: { periodKey: 
   const [showKassalSearch, setShowKassalSearch] = useState(false);
 
   const pickedFood = pickedFoodId ? foods.find((f) => f.id === pickedFoodId) ?? null : null;
-  const units = pickedFood ? getUnitsForFood(pickedFood) : [];
+  const units = pickedFood ? getPackageOnlyUnits(pickedFood) : [];
   const matches = useMemo(() => {
     if (query.trim().length < 2) return [];
     return foods.filter((f) => f.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8);
