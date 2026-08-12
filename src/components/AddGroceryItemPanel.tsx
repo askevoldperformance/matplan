@@ -7,7 +7,7 @@ import KassalSearchModal from "./KassalSearchModal";
 import NumberField from "./NumberField";
 
 export default function AddGroceryItemPanel({ periodKey, onDone }: { periodKey: string; onDone: () => void }) {
-  const { foods, addManualGroceryItem } = useStore();
+  const { foods, manualGroceryItems, addManualGroceryItem } = useStore();
   const [query, setQuery] = useState("");
   const [pickedFoodId, setPickedFoodId] = useState<string | null>(null);
   const [unitIdx, setUnitIdx] = useState(0);
@@ -20,6 +20,27 @@ export default function AddGroceryItemPanel({ periodKey, onDone }: { periodKey: 
     if (query.trim().length < 2) return [];
     return foods.filter((f) => f.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8);
   }, [foods, query]);
+
+  // Most recently added standalone items first — so the usual suspects (milk, kids' yoghurt)
+  // are one tap away instead of needing to search every single time.
+  const recentFoods = useMemo(() => {
+    const byRecency = [...manualGroceryItems].sort((a, b) => {
+      const ta = Number(a.id.split("-")[1] ?? 0);
+      const tb = Number(b.id.split("-")[1] ?? 0);
+      return tb - ta;
+    });
+    const seen = new Set<string>();
+    const result: typeof foods = [];
+    for (const item of byRecency) {
+      if (seen.has(item.foodId)) continue;
+      const food = foods.find((f) => f.id === item.foodId);
+      if (!food) continue;
+      seen.add(item.foodId);
+      result.push(food);
+      if (result.length >= 6) break;
+    }
+    return result;
+  }, [manualGroceryItems, foods]);
 
   function confirm() {
     if (!pickedFood) return;
@@ -45,6 +66,25 @@ export default function AddGroceryItemPanel({ periodKey, onDone }: { periodKey: 
               className="flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
+          {query.trim().length === 0 && recentFoods.length > 0 && (
+            <div className="mt-2">
+              <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-(--color-ink-soft)">
+                Sist lagt til
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {recentFoods.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setPickedFoodId(f.id)}
+                    className="flex items-center gap-2 rounded-xl bg-(--color-cream) p-2 text-left"
+                  >
+                    <FoodThumb food={f} size={32} />
+                    <span className="truncate text-[13px] font-semibold">{f.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="mt-2 flex flex-col gap-1.5">
             {matches.map((f) => (
               <button

@@ -277,6 +277,10 @@ export function deleteManualGroceryItem(id: string) {
   supabase?.from("manual_grocery_items").delete().eq("id", id).then(({ error }) => warn("manual_grocery_items delete")(error));
 }
 
+export function deleteAllFoods() {
+  supabase?.from("foods").delete().eq("household_id", HOUSEHOLD_ID).then(({ error }) => warn("delete all foods")(error));
+}
+
 export async function loadSettings(): Promise<{ kiwiPlussEnabled: boolean; trippelTrumfToday: boolean } | null> {
   if (!supabase) return null;
   const { data } = await supabase

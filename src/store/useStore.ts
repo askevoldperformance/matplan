@@ -12,6 +12,7 @@ import {
   syncGroceryExcluded,
   syncManualGroceryItem,
   deleteManualGroceryItem,
+  deleteAllFoods,
   syncPerson,
   syncPlannedMeal,
   deletePlannedMeal,
@@ -86,6 +87,7 @@ interface StoreActions {
   copyWeek: (sourceWeekStartIso: string, targetWeekStartIso: string) => void;
   addManualGroceryItem: (periodKey: string, foodId: string, grams: number) => void;
   removeManualGroceryItem: (itemId: string) => void;
+  clearAllFoods: () => void;
 
   selectedDate: string;
   setSelectedDate: (date: string) => void;
@@ -336,6 +338,11 @@ export const useStore = create<StoreState>((set, get) => ({
       deleteManualGroceryItem(itemId);
       return { manualGroceryItems: state.manualGroceryItems.filter((i) => i.id !== itemId) };
     }),
+
+  clearAllFoods: () => {
+    deleteAllFoods();
+    set({ foods: [] });
+  },
 
   moveCategory: (category, direction) =>
     set((state) => {

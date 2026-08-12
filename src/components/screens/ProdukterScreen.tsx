@@ -14,7 +14,18 @@ function storeLabelFromCode(code?: string): string {
 }
 
 export default function ProdukterScreen() {
-  const { foods, toggleFavorite, addFood, updateFood, activeStore, setActiveStore } = useStore();
+  const { foods, toggleFavorite, addFood, updateFood, clearAllFoods, activeStore, setActiveStore } = useStore();
+  const [confirmingClearAll, setConfirmingClearAll] = useState(false);
+
+  function handleClearAllFoods() {
+    if (!confirmingClearAll) {
+      setConfirmingClearAll(true);
+      setTimeout(() => setConfirmingClearAll(false), 4000);
+      return;
+    }
+    clearAllFoods();
+    setConfirmingClearAll(false);
+  }
   const [query, setQuery] = useState("");
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [detailFood, setDetailFood] = useState<FoodItem | null>(null);
@@ -92,39 +103,65 @@ export default function ProdukterScreen() {
     }
   }
 
+  const FAV_PRICE_CHECK_KEY = "matplan.lastFavPriceCheck";
+
+  // Quiet daily check of just your favorites (the "usual staples") — no button needed,
+  // shows up as the same banner below if anything's meaningfully cheaper elsewhere right now.
+  useEffect(() => {
+    const last = localStorage.getItem(FAV_PRICE_CHECK_KEY);
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    if (last && Date.now() - Number(last) < oneDayMs) return;
+    const favCandidates = foods.filter((f) => f.isFavorite && f.ean && f.storeCode && f.unitPrice);
+    if (favCandidates.length === 0) return;
+    (async () => {
+      try {
+        const results = await checkPricesFor(favCandidates);
+        if (results.length > 0) setBetterPrices(results);
+        localStorage.setItem(FAV_PRICE_CHECK_KEY, String(Date.now()));
+      } catch {
+        // silent — this is a background convenience check, not worth surfacing an error for
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [foods.length]);
+
+  async function checkPricesFor(candidates: FoodItem[]) {
+    const results: typeof betterPrices = [];
+    // Sequential rather than Promise.all — this isn't worth hammering Kassal with a burst
+    // of parallel requests, whether it's a manual check or the quiet daily auto-check.
+    for (const food of candidates) {
+      try {
+        const comparisons = await fetchPriceComparison(food.ean!);
+        const cheaperElsewhere = comparisons
+          .filter((c) => c.storeCode !== food.storeCode)
+          .sort((a, b) => a.price - b.price)[0];
+        if (!cheaperElsewhere) continue;
+        const diff = Math.round((food.unitPrice! - cheaperElsewhere.price) * 100) / 100;
+        const diffPct = diff / food.unitPrice!;
+        // Only worth surfacing if the difference is meaningful — 1-3 kr doesn't matter.
+        if (diff >= 5 || diffPct >= 0.15) {
+          results.push({
+            food,
+            betterStoreCode: cheaperElsewhere.storeCode,
+            betterStoreName: cheaperElsewhere.storeName,
+            betterPrice: cheaperElsewhere.price,
+            diff,
+          });
+        }
+      } catch {
+        // one product failing shouldn't kill the whole check
+      }
+    }
+    return results.sort((a, b) => b.diff - a.diff);
+  }
+
   async function handleCheckBetterPrices() {
     setCheckingPrices(true);
     setPriceCheckError(null);
     setBetterPrices([]);
     try {
       const candidates = foods.filter((f) => f.ean && f.storeCode && f.unitPrice);
-      const results: typeof betterPrices = [];
-      // Sequential rather than Promise.all — this is a manual, occasional check, not worth
-      // hammering Kassal with a burst of parallel requests.
-      for (const food of candidates) {
-        try {
-          const comparisons = await fetchPriceComparison(food.ean!);
-          const cheaperElsewhere = comparisons
-            .filter((c) => c.storeCode !== food.storeCode)
-            .sort((a, b) => a.price - b.price)[0];
-          if (!cheaperElsewhere) continue;
-          const diff = Math.round((food.unitPrice! - cheaperElsewhere.price) * 100) / 100;
-          const diffPct = diff / food.unitPrice!;
-          // Only worth surfacing if the difference is meaningful — 1-3 kr doesn't matter.
-          if (diff >= 5 || diffPct >= 0.15) {
-            results.push({
-              food,
-              betterStoreCode: cheaperElsewhere.storeCode,
-              betterStoreName: cheaperElsewhere.storeName,
-              betterPrice: cheaperElsewhere.price,
-              diff,
-            });
-          }
-        } catch {
-          // one product failing shouldn't kill the whole check
-        }
-      }
-      setBetterPrices(results.sort((a, b) => b.diff - a.diff));
+      setBetterPrices(await checkPricesFor(candidates));
     } catch {
       setPriceCheckError("Fikk ikke sjekket priser. Prøv igjen om litt.");
     } finally {
@@ -175,6 +212,15 @@ export default function ProdukterScreen() {
             <Star size={12} strokeWidth={2.5} /> Favoritter
           </button>
         </div>
+        <p className="mt-1.5 text-[11px] text-(--color-ink-soft)">
+          "Alle" = alt du har lagret. "Favoritter" = kun det du har stjernemerket ({"\u2606"}-ikonet på hver vare).
+        </p>
+        <button
+          onClick={handleClearAllFoods}
+          className="mt-2 text-[11.5px] font-semibold text-(--color-orange-dark) underline"
+        >
+          {confirmingClearAll ? "Trykk igjen for å bekrefte — sletter ALT" : "Slett alle lagrede produkter"}
+        </button>
 
         <div className="mt-4 rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
           <div className="flex items-center justify-between gap-2">
@@ -308,21 +354,21 @@ export default function ProdukterScreen() {
           <div className="w-full max-w-md rounded-3xl bg-(--color-cream) p-5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-display flex-1 text-[17px] font-bold leading-tight">{detailFood.name}</h2>
-              {detailFood.kassalId && (
-                <button
-                  onClick={() => handleRefreshFromStore(detailFood)}
-                  disabled={refreshing}
-                  className="flex-none rounded-full bg-white p-1.5 shadow-sm disabled:opacity-50"
-                  title="Oppdater fra butikk"
-                >
-                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-                </button>
-              )}
               <button onClick={() => setDetailFood(null)} className="flex-none rounded-full bg-white p-1.5 shadow-sm">
                 <X size={18} />
               </button>
             </div>
             {refreshError && <p className="mb-2 text-[12px] text-(--color-orange-dark)">{refreshError}</p>}
+            {detailFood.kassalId && (
+              <button
+                onClick={() => handleRefreshFromStore(detailFood)}
+                disabled={refreshing}
+                className="mb-3 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-(--color-cream-deep) py-2 text-[12.5px] font-semibold disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                {refreshing ? "Oppdaterer..." : "Oppdater fra butikk"}
+              </button>
+            )}
             <div className="flex items-center gap-4">
               <FoodThumb food={detailFood} size={72} />
               <div>
