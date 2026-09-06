@@ -198,13 +198,19 @@ function DagView({
 
   return (
     <>
-      <div className="mt-4 flex items-center justify-between">
-        <button onClick={() => setSelectedDate(addDays(selectedDate, -1))} className="rounded-full p-2 active:bg-black/5">
-          <ChevronLeft size={22} />
+      <div className="mt-4 flex items-center justify-between rounded-[18px] bg-(--color-card) p-1.5">
+        <button
+          onClick={() => setSelectedDate(addDays(selectedDate, -1))}
+          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-(--color-cream-soft) text-(--color-ink-soft) active:bg-(--color-cream-mid)"
+        >
+          <ChevronLeft size={20} />
         </button>
-        <h2 className="font-display text-[18px] font-bold">{formatDayLabel(selectedDate)}</h2>
-        <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="rounded-full p-2 active:bg-black/5">
-          <ChevronRight size={22} />
+        <h2 className="font-display text-[15px] font-semibold text-(--color-ink)">{formatDayLabel(selectedDate)}</h2>
+        <button
+          onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-(--color-cream-soft) text-(--color-ink-soft) active:bg-(--color-cream-mid)"
+        >
+          <ChevronRight size={20} />
         </button>
       </div>
 
@@ -462,13 +468,19 @@ function UkeView({ person, selectedDate, setSelectedDate, weekPlan, recipeMap, o
 
   return (
     <>
-      <div className="mt-4 flex items-center justify-between">
-        <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="rounded-full p-2 active:bg-black/5">
-          <ChevronLeft size={22} />
+      <div className="mt-4 flex items-center justify-between rounded-[18px] bg-(--color-card) p-1.5">
+        <button
+          onClick={() => setSelectedDate(addDays(selectedDate, -7))}
+          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-(--color-cream-soft) text-(--color-ink-soft) active:bg-(--color-cream-mid)"
+        >
+          <ChevronLeft size={20} />
         </button>
-        <h2 className="font-display text-[18px] font-bold">Uke {weekNumber(selectedDate)}</h2>
-        <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="rounded-full p-2 active:bg-black/5">
-          <ChevronRight size={22} />
+        <h2 className="font-display text-[15px] font-semibold text-(--color-ink)">Uke {weekNumber(selectedDate)}</h2>
+        <button
+          onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-(--color-cream-soft) text-(--color-ink-soft) active:bg-(--color-cream-mid)"
+        >
+          <ChevronRight size={20} />
         </button>
       </div>
 
@@ -568,13 +580,19 @@ function ManedView({ person, selectedDate, setSelectedDate, weekPlan, onSelectDa
 
   return (
     <>
-      <div className="mt-4 flex items-center justify-between">
-        <button onClick={() => setSelectedDate(addMonths(selectedDate, -1))} className="rounded-full p-2 active:bg-black/5">
-          <ChevronLeft size={22} />
+      <div className="mt-4 flex items-center justify-between rounded-[18px] bg-(--color-card) p-1.5">
+        <button
+          onClick={() => setSelectedDate(addMonths(selectedDate, -1))}
+          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-(--color-cream-soft) text-(--color-ink-soft) active:bg-(--color-cream-mid)"
+        >
+          <ChevronLeft size={20} />
         </button>
-        <h2 className="font-display text-[18px] font-bold">{formatMonthLabel(selectedDate)}</h2>
-        <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="rounded-full p-2 active:bg-black/5">
-          <ChevronRight size={22} />
+        <h2 className="font-display text-[15px] font-semibold text-(--color-ink)">{formatMonthLabel(selectedDate)}</h2>
+        <button
+          onClick={() => setSelectedDate(addMonths(selectedDate, 1))}
+          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-(--color-cream-soft) text-(--color-ink-soft) active:bg-(--color-cream-mid)"
+        >
+          <ChevronRight size={20} />
         </button>
       </div>
 

@@ -359,16 +359,28 @@ export default function HandlelisteScreen() {
                 </div>
               ))}
 
-              {kiwiPlussEnabled && group.bonus.bonusKr > 0 && (
-                <div className="border-t border-(--color-cream-deep) pt-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[12.5px] text-(--color-leaf)">
-                      Trumf-bonus{group.bonus.produceRatePct > 0 ? ` (${group.bonus.produceRatePct}% frukt/grønt, ${group.bonus.standardRatePct}% resten)` : ` (${group.bonus.standardRatePct}%)`}
-                    </p>
-                    <p className="text-[13px] font-semibold text-(--color-leaf)">−{group.bonus.bonusKr} kr</p>
+              {(() => {
+                const pantTotal = group.lines.reduce((sum, l) => sum + (l.pantTotal ?? 0), 0);
+                const showBonus = kiwiPlussEnabled && group.bonus.bonusKr > 0;
+                const showPant = pantTotal > 0;
+                if (!showBonus && !showPant) return null;
+                return (
+                  <div className="mt-1 flex gap-2.5 border-t border-(--color-cream-deep) pt-3">
+                    {showBonus && (
+                      <div className="flex-1 rounded-2xl p-2.5" style={{ background: "var(--color-cream-soft)" }}>
+                        <p className="text-[10.5px] uppercase tracking-wide text-(--color-ink-soft)">Trumf-bonus</p>
+                        <p className="mt-0.5 text-[14.5px] font-semibold text-(--color-leaf)">−{group.bonus.bonusKr} kr</p>
+                      </div>
+                    )}
+                    {showPant && (
+                      <div className="flex-1 rounded-2xl p-2.5" style={{ background: "var(--color-cream-soft)" }}>
+                        <p className="text-[10.5px] uppercase tracking-wide text-(--color-ink-soft)">Pant</p>
+                        <p className="mt-0.5 text-[14.5px] font-semibold text-(--color-ink)">{pantTotal} kr</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
               {kiwiPlussEnabled && !isTrumfStore(group.storeCode) && group.storeCode !== "UKJENT" && (
                 <p className="pt-2 text-[11px] text-(--color-ink-soft)">Ingen Trumf-bonus hos {storeLabelFor(group.storeCode)}.</p>
               )}

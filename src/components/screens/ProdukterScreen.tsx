@@ -179,13 +179,13 @@ export default function ProdukterScreen() {
         </p>
         <StoreSelector activeStore={activeStore} onChange={setActiveStore} />
 
-        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-(--color-card) px-3 py-2.5 shadow-sm">
-          <Search size={17} color="var(--color-ink-soft)" />
+        <div className="mt-3 flex items-center gap-2.5 rounded-[18px] bg-(--color-card) px-4" style={{ minHeight: 50 }}>
+          <Search size={16} color="var(--color-ink-faint)" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={`Søk hos ${storeLabel} eller i dine egne matvarer...`}
-            className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-(--color-ink-soft)"
+            className="flex-1 bg-transparent text-[15px] outline-none placeholder:text-(--color-ink-faint)"
           />
           {remoteLoading && <Loader2 size={16} className="animate-spin" color="var(--color-ink-soft)" />}
         </div>
@@ -222,24 +222,27 @@ export default function ProdukterScreen() {
           {confirmingClearAll ? "Trykk igjen for å bekrefte — sletter ALT" : "Slett alle lagrede produkter"}
         </button>
 
-        <div className="mt-4 rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
+        <div
+          className="mt-4 rounded-[22px] p-[18px]"
+          style={{ background: "linear-gradient(135deg, var(--color-sage), var(--color-sage-dark))" }}
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="text-[14px] font-bold">Bedre pris et annet sted?</p>
-              <p className="text-[11.5px] text-(--color-ink-soft)">
-                Sjekker dine lagrede produkter mot andre butikker — kun vesentlige forskjeller vises
+              <p className="text-[15.5px] font-semibold text-white">Bedre pris et annet sted?</p>
+              <p className="mt-1 max-w-[210px] text-[12.5px] leading-[1.45] text-white/85">
+                Vi sammenligner dine lagrede produkter — kun vesentlige forskjeller vises.
               </p>
             </div>
             <button
               onClick={handleCheckBetterPrices}
               disabled={checkingPrices}
-              className="flex-none rounded-full px-3 py-2 text-[12.5px] font-semibold text-white disabled:opacity-60"
-              style={{ background: "var(--color-leaf)" }}
+              className="flex-none rounded-[14px] px-[22px] text-[14px] font-semibold text-(--color-ink) disabled:opacity-60"
+              style={{ background: "var(--color-cream)", minHeight: 44 }}
             >
-              {checkingPrices ? <Loader2 size={15} className="animate-spin" /> : "Sjekk"}
+              {checkingPrices ? <Loader2 size={15} className="animate-spin" /> : "Sjekk priser"}
             </button>
           </div>
-          {priceCheckError && <p className="mt-2 text-[12.5px] text-(--color-orange-dark)">{priceCheckError}</p>}
+          {priceCheckError && <p className="mt-2 text-[12.5px] text-white">{priceCheckError}</p>}
           {betterPrices.length > 0 && (
             <div className="mt-3 flex flex-col gap-2">
               {betterPrices.map(({ food, betterStoreName, betterPrice, diff }) => (

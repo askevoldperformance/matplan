@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Lock } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import PersonEditModal from "../PersonEditModal";
+import ProgressBar from "../ProgressBar";
 import {
   calculateMacroTargets,
   eatenMacrosForPersonDay,
@@ -13,8 +14,6 @@ import { formatDayDateLabel, todayISO } from "../../utils/dates";
 import { LineChart, Line, ResponsiveContainer, YAxis } from "recharts";
 import type { Tab } from "../BottomNav";
 import type { MealSlot } from "../../types";
-
-const SEGMENT_COLORS = ["var(--color-sage)", "var(--color-yellow)"];
 
 export default function MinDagScreen({ goTo }: { goTo: (t: Tab) => void }) {
   const {
@@ -44,23 +43,6 @@ export default function MinDagScreen({ goTo }: { goTo: (t: Tab) => void }) {
       }),
     [people, weekPlan, recipes, foods, selectedDate]
   );
-
-  const householdTargetKcal = stats.reduce((sum, s) => sum + s.target.kcal, 0);
-  const householdEatenKcal = stats.reduce((sum, s) => sum + s.eaten.kcal, 0);
-
-  const householdMacros = useMemo(() => {
-    const labels: { key: "protein" | "carbs" | "fat"; label: string; short: string; color: string }[] = [
-      { key: "protein", label: "protein", short: "P", color: "var(--color-sage-dark)" },
-      { key: "carbs", label: "karbo", short: "K", color: "var(--color-yellow)" },
-      { key: "fat", label: "fett", short: "F", color: "var(--color-orange)" },
-    ];
-    return labels.map(({ key, label, short, color }) => {
-      const target = stats.reduce((sum, s) => sum + s.target[key], 0);
-      const eaten = stats.reduce((sum, s) => sum + s.eaten[key], 0);
-      const pct = target > 0 ? Math.min(100, Math.round((eaten / target) * 100)) : 0;
-      return { label, short, color, pct, grams: Math.round(eaten) };
-    });
-  }, [stats]);
 
   const nextMeal = useMemo(() => {
     const slotsOrder: MealSlot[] = ["frokost", "lunsj", "middag", "kveldsmat"];
@@ -124,76 +106,55 @@ export default function MinDagScreen({ goTo }: { goTo: (t: Tab) => void }) {
       </div>
 
       <div className="px-4">
-        {/* Husstanden i dag */}
-        <div className="rounded-[26px] p-5 text-white" style={{ background: "var(--color-ink)" }}>
-          <p className="text-[11.5px] uppercase tracking-wide" style={{ color: "rgba(255,255,255,.6)" }}>
-            Husstanden i dag
-          </p>
-          <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="font-display text-[38px] font-bold leading-none tracking-tight">
-              {Math.round(householdEatenKcal).toLocaleString("nb-NO")}
-            </span>
-            <span className="pb-0.5 text-[14px]" style={{ color: "rgba(255,255,255,.55)" }}>
-              / {Math.round(householdTargetKcal).toLocaleString("nb-NO")} kcal
-            </span>
-          </div>
-          <div className="mt-3 flex h-3.5 gap-0.5 overflow-hidden rounded-[7px]" style={{ background: "rgba(255,255,255,.14)" }}>
-            {stats.map((s, i) => (
-              <div
-                key={s.person.id}
-                style={{
-                  width: `${householdTargetKcal > 0 ? Math.min(100, (s.eaten.kcal / householdTargetKcal) * 100) : 0}%`,
-                  background: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
-                }}
-              />
-            ))}
-          </div>
-          <div className="mt-3 flex gap-4">
-            {stats.map((s, i) => (
-              <div key={s.person.id} className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: "rgba(255,255,255,.8)" }}>
-                <span className="h-2 w-2 rounded-full" style={{ background: SEGMENT_COLORS[i % SEGMENT_COLORS.length] }} />
-                {s.person.name} {Math.round(s.eaten.kcal)}
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Per-person: navn, kcal-stolpe, makro-bokser (1a) */}
+        {stats.map(({ person, target, eaten, remaining }) => (
+          <div key={person.id} className="mb-4 rounded-[26px] bg-(--color-card) p-[6px] last:mb-0">
+            <div className="rounded-[21px] p-[18px] pb-5">
+              <button onClick={() => setEditingPerson(person.id)} className="flex w-full items-center gap-3 text-left">
+                <span
+                  className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full text-[14px] font-semibold"
+                  style={{ background: "var(--color-cream-deep)", color: "#8A7A55" }}
+                >
+                  {person.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-semibold tracking-tight text-(--color-ink)">{person.name}</span>
+                  <span className="block text-[12.5px] text-(--color-ink-soft)">
+                    {Math.round(eaten.kcal)} av {target.kcal} kcal
+                  </span>
+                </span>
+                <span className="flex-none text-right">
+                  <span className="block font-display text-[21px] font-bold leading-none tracking-tight text-(--color-leaf)">
+                    {remaining}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-(--color-ink-soft)">kcal igjen</span>
+                </span>
+              </button>
 
-        {/* Per-person kcal igjen */}
-        <div className="mt-3 flex gap-3">
-          {stats.map(({ person, remaining }) => (
-            <button
-              key={person.id}
-              onClick={() => setEditingPerson(person.id)}
-              className="flex-1 rounded-[22px] bg-(--color-card) p-4 text-left"
-            >
-              <p className="text-[13.5px] font-semibold text-(--color-ink)">{person.name}</p>
-              <p className="mt-2 font-display text-[22px] font-bold tracking-tight text-(--color-leaf)">{remaining}</p>
-              <p className="mt-0.5 text-[11px] text-(--color-ink-soft)">kcal igjen</p>
-            </button>
-          ))}
-        </div>
-
-        {/* Makro-fordeling, husstand */}
-        <div className="mt-3 rounded-3xl bg-(--color-card) p-[18px]">
-          <div className="flex h-[34px] gap-0.5 overflow-hidden rounded-xl" style={{ background: "var(--color-cream-mid)" }}>
-            {householdMacros.map((m) => (
-              <div
-                key={m.label}
-                className="flex items-center justify-center text-[11px] font-semibold text-white"
-                style={{ width: `${m.pct}%`, background: m.color }}
-              >
-                {m.pct > 12 ? m.short : ""}
+              <div className="mt-4">
+                <ProgressBar value={eaten.kcal} max={target.kcal} height={12} />
               </div>
-            ))}
+
+              <div className="mt-3 flex gap-2.5">
+                {(
+                  [
+                    ["protein", "Protein", eaten.protein, target.protein, "var(--color-sage-dark)"],
+                    ["karbo", "Karbo", eaten.carbs, target.carbs, "var(--color-yellow)"],
+                    ["fett", "Fett", eaten.fat, target.fat, "var(--color-orange)"],
+                  ] as const
+                ).map(([key, label, val, tgt, color]) => (
+                  <div key={key} className="flex-1 rounded-2xl p-2.5" style={{ background: "var(--color-cream-soft)" }}>
+                    <p className="text-[10.5px] uppercase tracking-wide text-(--color-ink-soft)">{label}</p>
+                    <p className="mt-0.5 text-[14px] font-semibold text-(--color-ink)">{Math.round(val)} g</p>
+                    <div className="mt-1.5">
+                      <ProgressBar value={val} max={tgt} height={4} color={color} trackColor="var(--color-cream-mid)" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="mt-3 flex justify-between text-[11.5px] text-(--color-ink-soft)">
-            {householdMacros.map((m) => (
-              <span key={m.label}>
-                {m.grams} g {m.label}
-              </span>
-            ))}
-          </div>
-        </div>
+        ))}
 
         {/* Hurtiglogg */}
         <p className="mb-2.5 mt-6 px-1 text-[12px] font-semibold uppercase tracking-wide text-(--color-ink-soft)">

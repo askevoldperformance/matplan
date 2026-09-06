@@ -11,6 +11,7 @@ import type { MealSlot } from "../../types";
 
 export default function OppskrifterScreen() {
   const { recipes, foods, people, addMealToPlan } = useStore();
+  const [query, setQuery] = useState("");
   const [openRecipeId, setOpenRecipeId] = useState<string | null>(null);
   const [portionPersonId, setPortionPersonId] = useState(people[0].id);
   const [showAddPicker, setShowAddPicker] = useState(false);
@@ -197,6 +198,15 @@ export default function OppskrifterScreen() {
       {showKassalSearch && <KassalSearchModal onClose={() => setShowKassalSearch(false)} />}
       {showRecipeBuilder && <RecipeBuilderModal onClose={() => setShowRecipeBuilder(false)} />}
       <div className="px-4 pt-4">
+        <div className="mb-3.5 flex items-center gap-2.5 rounded-[18px] bg-(--color-card) px-4" style={{ minHeight: 50 }}>
+          <Search size={16} color="var(--color-ink-faint)" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Søk i dine måltider"
+            className="flex-1 bg-transparent text-[15px] outline-none placeholder:text-(--color-ink-faint)"
+          />
+        </div>
         <button
           onClick={() => setShowRecipeBuilder(true)}
           className="mb-3 flex w-full items-center justify-center gap-1.5 rounded-2xl py-3 text-[13.5px] font-bold text-white"
@@ -205,24 +215,38 @@ export default function OppskrifterScreen() {
           <Plus size={15} strokeWidth={3} /> Nytt måltid
         </button>
         <div className="flex flex-col gap-3">
-          {recipes.map((r) => {
+          {recipes
+            .filter((r) => r.name.toLowerCase().includes(query.toLowerCase()))
+            .map((r) => {
             const m = recipePersonMacros(r, foods, 1);
             return (
               <button
                 key={r.id}
                 onClick={() => setOpenRecipeId(r.id)}
-                className="flex items-center gap-3 rounded-3xl bg-(--color-card) p-4 text-left shadow-[0_4px_16px_rgba(60,50,20,0.06)]"
+                className="flex items-center gap-3.5 rounded-[22px] bg-(--color-card) p-3.5 text-left"
               >
-                <div className="flex h-14 w-14 flex-none items-center justify-center rounded-2xl bg-(--color-cream) text-3xl">
+                <div className="flex h-[70px] w-[70px] flex-none items-center justify-center rounded-2xl border border-dashed border-(--color-ink)/10 bg-(--color-cream-mid) text-3xl">
                   {r.icon}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-bold">{r.name}</p>
-                  <p className="text-[12.5px] text-(--color-ink-soft)">
-                    {Math.round(m.kcal)} kcal · {r.ingredients.length} ingredienser
-                  </p>
+                  <p className="truncate text-[15.5px] font-semibold leading-tight text-(--color-ink)">{r.name}</p>
+                  <p className="mt-1 text-[12.5px] text-(--color-ink-soft)">{r.ingredients.length} ingredienser</p>
+                  <div className="mt-2 flex gap-1.5">
+                    <span
+                      className="rounded-[9px] px-2.5 py-1 text-[11px] font-semibold"
+                      style={{ background: "var(--color-leaf-light)", color: "#3F7343" }}
+                    >
+                      måltid
+                    </span>
+                    <span
+                      className="rounded-[9px] px-2.5 py-1 text-[11px] font-semibold"
+                      style={{ background: "var(--color-orange-light)", color: "var(--color-orange-text)" }}
+                    >
+                      {Math.round(m.kcal)} kcal
+                    </span>
+                  </div>
                 </div>
-                <ChevronRight size={20} color="var(--color-ink-soft)" />
+                <ChevronRight size={20} color="var(--color-ink-faint)" />
               </button>
             );
           })}
