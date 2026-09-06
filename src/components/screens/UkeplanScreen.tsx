@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Check, Minus, Plus, X, MoreVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Minus, Plus, X } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import {
   SLOT_LABELS,
@@ -23,6 +23,7 @@ import {
 } from "../../utils/dates";
 import FoodThumb from "../FoodThumb";
 import AddMealItemPanel from "../AddMealItemPanel";
+import SwipeableMealCard from "../SwipeableMealCard";
 import ProgressBar from "../ProgressBar";
 import type { PlannedMeal } from "../../types";
 
@@ -173,7 +174,6 @@ function DagView({
 }: any) {
   const [pickingMealSlot, setPickingMealSlot] = useState<string | null>(null);
   const [swappingMealId, setSwappingMealId] = useState<string | null>(null);
-  const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
 
   const todaysMeals = useMemo(
     () =>
@@ -301,9 +301,12 @@ function DagView({
             const factor = m.personPortions[person.id] ?? 1;
             const recipeMacros = recipe ? recipePersonMacros(recipe, foods, factor) : null;
             const myItems = m.items.filter((it: any) => it.personId === person.id);
-            const isExpanded = expandedMealId === m.id;
             return (
-              <div key={m.id} className="rounded-3xl bg-(--color-card) p-4">
+              <SwipeableMealCard
+                key={m.id}
+                onSwap={() => recipe && setSwappingMealId(m.id)}
+                onDelete={() => removeMeal(m.id)}
+              >
                 <div className="flex items-start gap-3.5">
                   <button
                     onClick={() => toggleEaten(m.id, person.id)}
@@ -331,55 +334,41 @@ function DagView({
                       {recipe?.name ?? (myItems.length === 0 ? "Egne varer" : "")}
                     </p>
                   </div>
-                  <div className="flex flex-none flex-col items-end gap-1.5">
-                    <span className="text-[15px] font-semibold text-(--color-ink-soft)">
-                      {Math.round(recipeMacros?.kcal ?? 0)} kcal
-                    </span>
-                    <button
-                      onClick={() => setExpandedMealId(isExpanded ? null : m.id)}
-                      className="rounded-full p-1 text-(--color-ink-faint) active:bg-(--color-cream-soft)"
-                    >
-                      <MoreVertical size={17} />
-                    </button>
-                  </div>
+                  <span className="flex-none text-[15px] font-semibold text-(--color-ink-soft)">
+                    {Math.round(recipeMacros?.kcal ?? 0)} kcal
+                  </span>
                 </div>
 
-                {isExpanded && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-(--color-cream-deep) pt-3">
-                    {recipe && (
-                      <>
-                        <button
-                          onClick={() => updateMealPortion(m.id, person.id, Math.max(0.25, factor - 0.1))}
-                          className="rounded-full bg-(--color-cream-soft) p-1.5 active:scale-95"
-                        >
-                          <Minus size={13} />
-                        </button>
-                        <span className="text-[12px] font-semibold text-(--color-ink-soft)">porsjon</span>
-                        <button
-                          onClick={() => updateMealPortion(m.id, person.id, factor + 0.1)}
-                          className="rounded-full bg-(--color-cream-soft) p-1.5 active:scale-95"
-                        >
-                          <Plus size={13} />
-                        </button>
-                        <span className="mx-1 h-4 w-px bg-(--color-cream-deep)" />
-                        <button
-                          onClick={() => setSwappingMealId(swappingMealId === m.id ? null : m.id)}
-                          className="text-[12px] font-semibold text-(--color-leaf)"
-                        >
-                          Bytt måltid
-                        </button>
-                      </>
-                    )}
+                {recipe && (
+                  <div className="mt-2.5 flex items-center gap-2 border-t border-(--color-cream-deep) pt-2.5">
+                    <button
+                      onClick={() => updateMealPortion(m.id, person.id, Math.max(0.25, factor - 0.1))}
+                      className="rounded-full bg-(--color-cream-soft) p-1.5 active:scale-95"
+                    >
+                      <Minus size={13} />
+                    </button>
+                    <span className="text-[12px] font-semibold text-(--color-ink-soft)">porsjon</span>
+                    <button
+                      onClick={() => updateMealPortion(m.id, person.id, factor + 0.1)}
+                      className="rounded-full bg-(--color-cream-soft) p-1.5 active:scale-95"
+                    >
+                      <Plus size={13} />
+                    </button>
                     <button
                       onClick={() => setAddingToMealId(addingToMealId === m.id ? null : m.id)}
-                      className="text-[12px] font-semibold text-(--color-orange-dark)"
+                      className="ml-auto text-[12px] font-semibold text-(--color-orange-dark)"
                     >
                       + Legg til produkt
                     </button>
-                    <button onClick={() => removeMeal(m.id)} className="ml-auto text-[12px] font-semibold text-(--color-ink-faint)">
-                      Fjern
-                    </button>
                   </div>
+                )}
+                {!recipe && (
+                  <button
+                    onClick={() => setAddingToMealId(addingToMealId === m.id ? null : m.id)}
+                    className="mt-2.5 border-t border-(--color-cream-deep) pt-2.5 text-[12px] font-semibold text-(--color-orange-dark)"
+                  >
+                    + Legg til produkt
+                  </button>
                 )}
 
                 {swappingMealId === m.id && (
@@ -419,11 +408,9 @@ function DagView({
                           <span className="flex-1 truncate text-[12.5px] text-(--color-ink-soft)">
                             {food.name} · {Math.round(it.grams)}g · {Math.round(macros.kcal)} kcal
                           </span>
-                          {isExpanded && (
-                            <button onClick={() => removeMealItem(m.id, it.id)} className="p-1">
-                              <X size={13} color="var(--color-ink-faint)" />
-                            </button>
-                          )}
+                          <button onClick={() => removeMealItem(m.id, it.id)} className="p-1">
+                            <X size={13} color="var(--color-ink-faint)" />
+                          </button>
                         </div>
                       );
                     })}
@@ -433,7 +420,7 @@ function DagView({
                 {addingToMealId === m.id && (
                   <AddMealItemPanel mealId={m.id} personId={person.id} onDone={() => setAddingToMealId(null)} />
                 )}
-              </div>
+              </SwipeableMealCard>
             );
           });
         })}

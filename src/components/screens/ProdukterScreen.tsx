@@ -193,20 +193,22 @@ export default function ProdukterScreen() {
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => setOnlyFavorites(false)}
-            className="rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold"
+            className="rounded-[14px] px-3.5 py-1.5 text-[13.5px] font-semibold"
             style={{
               background: !onlyFavorites ? "var(--color-sage)" : "var(--color-card)",
-              color: "var(--color-ink)",
+              color: !onlyFavorites ? "#FFFFFF" : "var(--color-ink-soft)",
+              border: `1px solid ${!onlyFavorites ? "var(--color-sage)" : "rgba(46,42,34,.08)"}`,
             }}
           >
             Alle
           </button>
           <button
             onClick={() => setOnlyFavorites(true)}
-            className="flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold"
+            className="flex items-center gap-1 rounded-[14px] px-3.5 py-1.5 text-[13.5px] font-semibold"
             style={{
               background: onlyFavorites ? "var(--color-sage)" : "var(--color-card)",
-              color: "var(--color-ink)",
+              color: onlyFavorites ? "#FFFFFF" : "var(--color-ink-soft)",
+              border: `1px solid ${onlyFavorites ? "var(--color-sage)" : "rgba(46,42,34,.08)"}`,
             }}
           >
             <Star size={12} strokeWidth={2.5} /> Favoritter

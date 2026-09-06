@@ -17,6 +17,7 @@ import FoodThumb from "../FoodThumb";
 import Toggle from "../Toggle";
 import AddGroceryItemPanel from "../AddGroceryItemPanel";
 import NumberField from "../NumberField";
+import ProgressBar from "../ProgressBar";
 import type { GroceryRange } from "../../types";
 
 const RANGE_LABEL: Record<GroceryRange, string> = {
@@ -198,6 +199,12 @@ export default function HandlelisteScreen() {
     [storeGroups]
   );
 
+  const totalItemCount = lines.length;
+  const checkedCount = useMemo(
+    () => lines.filter((l) => groceryChecked[`${periodKey}:${l.food.id}`]).length,
+    [lines, groceryChecked, periodKey]
+  );
+
   async function handleShare() {
     const text = storeGroups
       .map((g) => {
@@ -232,15 +239,16 @@ export default function HandlelisteScreen() {
     <div className="pb-28">
       <ScreenHeader title="Handleliste" />
       <div className="px-4 pt-4">
-        <div className="flex rounded-full bg-(--color-card) p-1 shadow-sm">
+        <div className="flex gap-2">
           {(Object.keys(RANGE_LABEL) as GroceryRange[]).map((r) => (
             <button
               key={r}
               onClick={() => setGroceryRange(r)}
-              className="flex-1 rounded-full py-2 text-[12.5px] font-semibold"
+              className="rounded-[14px] px-3.5 py-1.5 text-[13.5px] font-semibold"
               style={{
-                background: groceryRange === r ? "var(--color-cream-deep)" : "transparent",
-                color: groceryRange === r ? "var(--color-ink)" : "var(--color-ink-soft)",
+                background: groceryRange === r ? "var(--color-sage)" : "var(--color-card)",
+                color: groceryRange === r ? "#FFFFFF" : "var(--color-ink-soft)",
+                border: `1px solid ${groceryRange === r ? "var(--color-sage)" : "rgba(46,42,34,.08)"}`,
               }}
             >
               {RANGE_LABEL[r]}
@@ -252,6 +260,22 @@ export default function HandlelisteScreen() {
           <p className="mt-6 py-6 text-center text-[13px] text-(--color-ink-soft)">
             Ingen måltider eller varer i denne perioden ennå.
           </p>
+        )}
+
+        {storeGroups.length > 0 && (
+          <div className="mt-4 rounded-[22px] bg-(--color-card) p-[18px]">
+            <div className="flex items-baseline justify-between">
+              <p className="text-[14.5px] font-semibold text-(--color-ink)">
+                {checkedCount} av {totalItemCount} krysset av
+              </p>
+              <p className="font-display text-[17px] font-bold text-(--color-ink)">
+                {grandBonus > 0 ? grandTotal - grandBonus : grandTotal} kr
+              </p>
+            </div>
+            <div className="mt-3">
+              <ProgressBar value={checkedCount} max={totalItemCount} height={10} color="var(--color-leaf)" />
+            </div>
+          </div>
         )}
 
         {storeGroups.map((group) => {
@@ -416,18 +440,11 @@ export default function HandlelisteScreen() {
         )}
 
         {storeGroups.length > 0 && (
-          <div className="mt-4 rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
-            <div className="flex items-center justify-between">
-              <p className="text-[14px] font-bold">Totalt, alle butikker:</p>
-              <p className="text-[16px] font-bold">{grandTotal} kr</p>
-            </div>
-            {grandBonus > 0 && (
-              <div className="mt-1 flex items-center justify-between">
-                <p className="text-[13.5px] font-bold">Etter Trumf-bonus:</p>
-                <p className="text-[16px] font-bold text-(--color-leaf)">{grandTotal - grandBonus} kr</p>
-              </div>
-            )}
-          </div>
+          <p className="mt-2 text-center text-[11.5px] text-(--color-ink-faint)">
+            {grandBonus > 0
+              ? `${grandTotal} kr før bonus, ${grandTotal - grandBonus} kr etter`
+              : `${grandTotal} kr totalt`}
+          </p>
         )}
 
         <div className="mt-4 rounded-3xl bg-(--color-card) p-4 shadow-[0_4px_16px_rgba(60,50,20,0.06)]">
