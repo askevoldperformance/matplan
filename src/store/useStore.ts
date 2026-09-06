@@ -70,6 +70,7 @@ interface StoreActions {
   loadHousehold: () => Promise<void>;
 
   toggleEaten: (mealId: string, personId: string) => void;
+  markMealEaten: (mealId: string, personId: string) => void;
   toggleGroceryChecked: (periodKey: string, foodId: string) => void;
   toggleGroceryExcluded: (periodKey: string, foodId: string) => void;
   updatePerson: (personId: string, patch: Partial<Person>) => void;
@@ -158,6 +159,16 @@ export const useStore = create<StoreState>((set, get) => ({
     set((state) => {
       const weekPlan = state.weekPlan.map((m) =>
         m.id === mealId ? { ...m, eatenBy: { ...m.eatenBy, [personId]: !m.eatenBy[personId] } } : m
+      );
+      const updated = weekPlan.find((m) => m.id === mealId);
+      if (updated) syncPlannedMeal(updated);
+      return { weekPlan };
+    }),
+
+  markMealEaten: (mealId, personId) =>
+    set((state) => {
+      const weekPlan = state.weekPlan.map((m) =>
+        m.id === mealId ? { ...m, eatenBy: { ...m.eatenBy, [personId]: true } } : m
       );
       const updated = weekPlan.find((m) => m.id === mealId);
       if (updated) syncPlannedMeal(updated);

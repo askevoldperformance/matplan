@@ -61,8 +61,8 @@ export default function UkeplanScreen() {
 
   return (
     <div className="pb-28">
-      <div className="safe-top flex items-center justify-between px-5 pb-5 pt-4" style={{ background: "var(--color-sage)" }}>
-        <h1 className="font-display text-[22px] font-bold tracking-tight">Matplan</h1>
+      <div className="safe-top flex items-center justify-between px-5 pb-3 pt-4">
+        <h1 className="font-display text-[32px] font-bold leading-tight tracking-tight text-(--color-ink)">Matplan</h1>
         <PersonAvatar person={person} size={40} />
       </div>
 
